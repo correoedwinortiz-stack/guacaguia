@@ -1,0 +1,25 @@
+{
+  "name": "Oraciones Mamá",
+  "short_name": "Mamá Live",
+  "description": "Reproductor de oraciones en vivo con Mamá",
+  "start_url": "/player",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/biblia.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/biblia.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
