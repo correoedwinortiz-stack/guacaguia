@@ -1,6 +1,6 @@
 # 🙏 Generador de Oraciones con la voz de Mamá
 
-Un homenaje especial: una IA que genera oraciones con la voz de tu mamá.
+Un homenaje especial: una IA que genera oraciones con la voz de tu mamá y las transmite en un Live de TikTok.
 
 ---
 
@@ -15,76 +15,53 @@ Abre una terminal en esta carpeta y ejecuta:
 npm install
 ```
 
-### Paso 3 — Obtener API Key de Gemini (GRATIS)
-1. Ve a https://aistudio.google.com/apikey
-2. Inicia sesión con tu cuenta de Google
-3. Haz clic en "Create API Key"
-4. Copia la clave generada
+### Paso 3 — Obtener API Keys de IA (GRATIS)
+El motor usa varios proveedores de IA para mayor disponibilidad (con fallback automático). No necesitas todos, con uno basta:
+1. **Groq**: Crea una cuenta gratis y obtén tu API Key en https://console.groq.com/keys
+2. **OpenRouter**: Crea una cuenta gratis y obtén tu API Key en https://openrouter.ai/keys
 
-### Paso 4 — Obtener Token de Hugging Face (GRATIS)
-1. Crea cuenta gratis en https://huggingface.co
-2. Ve a https://huggingface.co/settings/tokens
-3. Haz clic en "New token" → tipo "Read"
-4. Copia el token
-
-### Paso 5 — Preparar la voz de tu mamá
-- Copia el archivo de audio de tu mamá a esta carpeta
-- Renómbralo como `voz_mama.wav` (o ajusta la ruta en .env)
-- Recomendado: audio de al menos 1 minuto, sin ruido de fondo
-- Si es .mp3, puedes convertirlo en https://cloudconvert.com
-
-### Paso 6 — Configurar el archivo .env
-1. Copia el archivo `.env.example` y renómbralo a `.env`
+### Paso 4 — Configurar el archivo .env
+1. Renombra tu archivo `.env.example` a `.env` (o crea uno nuevo si no existe).
 2. Pega tus credenciales:
 
-```
-GEMINI_API_KEY=AIza...tu_clave_aqui
-HF_TOKEN=hf_...tu_token_aqui
-VOICE_SAMPLE_PATH=./voz_mama.wav
+```env
+GROQ_API_KEY=gsk_...tu_clave_aqui
+OPENROUTER_API_KEY=sk-or-v1-...tu_clave_aqui
+
+# TikTok Live
+TIKTOK_USERNAME=tu_usuario_de_tiktok
+
+# Configuración de voz (true para usar la voz gratis de Microsoft Edge)
+USE_FREE_TTS=true
 ```
 
 ---
 
-## ▶️ Usar el generador
+## ▶️ Usar el Live Stream (Servidor Web y TikTok)
+
+Para iniciar el servidor que se conecta a TikTok y maneja las peticiones en vivo:
 
 ```bash
-node oraciones.js
+npm run server
 ```
 
+Luego abre en tu navegador:
+- **Reproductor (para capturar en OBS):** `http://localhost:3002/player`
+- **Panel de Control:** `http://localhost:3002/admin`
+
+*(También puedes abrir el Panel de Control desde tu celular ingresando a la IP que te muestre la consola, si estás en la misma red WiFi).*
+
+---
+
+### Usar solo el generador por consola (Pruebas)
+
+Si solo quieres generar audios escribiendo en la terminal:
+
+```bash
+npm start
+```
 Luego escribe comandos como:
-
-```
-/oracion por mis hijos Andres y Pablo que están en el colegio
-/oracion de gratitud por las bendiciones recibidas este mes
-/oracion por sanidad de mi esposo que está enfermo
-/oracion por protección de la familia en los viajes
-/oracion de año nuevo para toda la familia
-```
-
----
-
-## 📁 Archivos generados
-
-- `oracion_[timestamp].wav` — Audio de cada oración generada
-- `oraciones_guardadas.txt` — Registro escrito de todas las oraciones
-
----
-
-## ⚠️ Notas importantes
-
-- La primera oración puede tardar 30-60 segundos (el modelo carga en HuggingFace)
-- Las siguientes son más rápidas
-- Si ves error 503, espera un momento y vuelve a intentar
-- Límite gratuito de Gemini: ~1500 oraciones/día (más que suficiente)
-- Límite gratuito de HuggingFace: uso razonable diario
-
----
-
-## 💡 Consejos para mejor calidad de voz
-
-- Usa el fragmento más largo y limpio de audio de tu mamá
-- Idealmente que esté orando (mismo tono que quieres recrear)
-- Puedes limpiar el ruido gratis en: https://podcast.adobe.com/enhance
+`/oracion por mis hijos Andres y Pablo que están en el colegio`
 
 ---
 
@@ -92,25 +69,25 @@ Luego escribe comandos como:
 
 El motor de voz se elige con la variable `USE_FREE_TTS` del archivo `.env`:
 
-- `USE_FREE_TTS=true` → voz gratuita de **Edge TTS** (genérica, no necesita llaves).
-- Sin `USE_FREE_TTS` (o en `false`) → **voz de mamá**: primero **Gradium** (`GRADIUM_API_KEYS` + `GRADIUM_VOICE_ID`) y, si falla o no está configurado, respaldo automático con **Free.ai** (`FREEAI_API_KEY` + `VOICE_SAMPLE_PATH`, gratis, 30k tokens/día).
+- `USE_FREE_TTS=true` → voz gratuita de **Edge TTS** (genérica, no necesita llaves, acento colombiano disponible).
+- Sin `USE_FREE_TTS` (o en `false`) → **voz de mamá**: primero intenta con **Gradium** (`GRADIUM_API_KEYS` + `GRADIUM_VOICE_ID`) y, si falla o no está configurado, usa el respaldo automático con **Free.ai** (`FREEAI_API_KEY` + `VOICE_SAMPLE_PATH`, gratis, 30k tokens/día).
 
 ---
 
 ## 📻 Oraciones estándar (ahorro de Gradium/Free.ai)
 
-Cuando se usa la **voz de mamá** (`USE_FREE_TTS=false`), las oraciones genéricas que suenan en el idle (cada 3 min sin peticiones) y tras cada bloque de música **se generan y sintetizan desde cero cada vez** (1 llamada LLM + 1 llamada TTS → se gastan los créditos de Gradium/Free.ai muy rápido).
+Cuando se usa la **voz clonada de mamá** (`USE_FREE_TTS=false`), las oraciones genéricas que suenan en reposo (idle, cada 3 min) y tras cada bloque de música **se generan y sintetizan desde cero cada vez** (gastando créditos de la API).
 
 Para evitarlo, el motor **rota audios pre-generados** con la voz de mamá desde la carpeta `oraciones_estandar/` (cero llamadas API por oración genérica):
 
-1. **Genera los audios una sola vez** (fuerza la voz de mamá aunque `.env` tenga `USE_FREE_TTS=true`):
+1. **Genera los audios una sola vez** (fuerza la voz clonada aunque `.env` tenga `USE_FREE_TTS=true`):
    ```bash
    node generar_oraciones_estandar.mjs
    ```
 2. Esto crea `oraciones_estandar/estandar_XX.wav` (6 oraciones) + `manifest.json`.
-3. El motor los detecta al arrancar y los rota sin repetir. Para desactivar: `USAR_ORACIONES_ESTANDAR=false` en `.env`.
+3. El motor los detecta al arrancar y los rota sin repetir. Para desactivar esto: pon `USAR_ORACIONES_ESTANDAR=false` en `.env`.
 
-Con `USE_FREE_TTS=true` (Edge TTS, gratis) se sigue generando oraciones frescas siempre.
+*Nota: Con `USE_FREE_TTS=true` (Edge TTS, que es ilimitado y gratis) el sistema ignora esto y sigue generando oraciones frescas y únicas siempre.*
 
 ---
 
