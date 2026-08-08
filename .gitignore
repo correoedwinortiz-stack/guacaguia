@@ -124,16 +124,13 @@ public
 venv/
 env/
 
-# Archivos específicos del proyecto de oraciones
+# Archivos específicos del proyecto de oraciones que NO se deben subir (dinámicos)
 tts_*.wav
 tts_*.mp3
+oracion_*.wav
 uploads/
 regalos_descubiertos.json
 playlists.json
 config.json
-*.wav
-*.mp3
-*.mp4
-*.jpeg
-*.png
-# No ignoro los .html ni los .js/.mjs
+oraciones_guardadas.txt
+gradium_uso.txt
