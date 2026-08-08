@@ -197,7 +197,23 @@
              value="✍️ Escribe en el chat tu petición de oración"
              placeholder="Instrucción para el chat..."
              oninput="saveOverlay()">
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+          <span style="font-size:1.2em;">💬</span>
+          <label class="field-label" style="margin:0; color:#c4b5fd; font-weight:700;">Chat Interactivo Web</label>
+        </div>
+        <div class="card-desc" style="margin-bottom:10px;">Muestra en la web del player un chat para que los visitantes envíen peticiones de oración directamente, sin necesitar TikTok.</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label class="field-label" style="margin:0;">Mostrar chat:</label>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="chatVisible" onchange="toggleChat()" style="width:18px; height:18px; cursor:pointer; accent-color:#a855f7;">
+            <span id="chatVisibleLabel" style="color:#94a3b8;">Oculto</span>
+          </label>
+        </div>
+      </div>
     </div>
+
 
     <div class="card" style="border-color: rgba(34,197,94,0.4);">
       <div class="card-emoji">🟩</div>
@@ -509,13 +525,20 @@
       saveOverlay();
     }
 
+    function toggleChat() {
+      const chatVisible = document.getElementById('chatVisible').checked;
+      document.getElementById('chatVisibleLabel').textContent = chatVisible ? 'Visible' : 'Oculto';
+      saveOverlay();
+    }
+
     function saveOverlay() {
       const visible = document.getElementById('overlayVisible').checked;
       const instruction = document.getElementById('overlayInstruction').value;
+      const chatVisible = document.getElementById('chatVisible').checked;
       fetch('/admin/overlay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visible, instruction })
+        body: JSON.stringify({ visible, instruction, chatVisible })
       }).catch(err => console.error(err));
     }
 
@@ -526,6 +549,8 @@
         document.getElementById('overlayVisible').checked = !!cfg.visible;
         document.getElementById('overlayVisibleLabel').textContent = cfg.visible ? 'Visible' : 'Oculto';
         if (cfg.instruction) document.getElementById('overlayInstruction').value = cfg.instruction;
+        document.getElementById('chatVisible').checked = !!cfg.chatVisible;
+        document.getElementById('chatVisibleLabel').textContent = cfg.chatVisible ? 'Visible' : 'Oculto';
       } catch (e) {}
     }
 

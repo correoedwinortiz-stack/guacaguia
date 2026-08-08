@@ -88,6 +88,7 @@ if (!fs.existsSync(ADORACION_DIR)) fs.mkdirSync(ADORACION_DIR);
 let overlayConfig = {
   visible: false,
   instruction: '✍️ Escribe en el chat tu petición de oración',
+  chatVisible: false,
   gifts: []
 };
 

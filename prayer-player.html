@@ -9,7 +9,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#000000">
-  <title>Prayer Player Mamá</title>
+  <title>Hermana Carmen Ora Por Ti</title>
+  <meta name="description" content="Envía tu petición de oración y la Hermana Carmen orará por ti en vivo.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sedgwick+Ave&display=swap" rel="stylesheet">
@@ -148,6 +149,176 @@
       opacity: 0; max-width: 280px; text-align: center;
     }
     .greeting-popup.show { animation: smackGlass 5s forwards; }
+
+    /* ── Chat Interactivo ───────────────────────────────────────── */
+    #chat-panel {
+      position: absolute;
+      bottom: 20px;
+      right: 16px;
+      width: min(320px, 88vw);
+      z-index: 50;
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      font-family: 'Inter', sans-serif;
+      filter: drop-shadow(0 8px 32px rgba(0,0,0,0.55));
+      animation: chatSlideIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    }
+    #chat-panel.visible { display: flex; }
+
+    @keyframes chatSlideIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0)    scale(1); }
+    }
+
+    #chat-header {
+      background: linear-gradient(135deg, rgba(109,40,217,0.92) 0%, rgba(168,85,247,0.92) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(196,167,255,0.35);
+      border-bottom: none;
+      border-radius: 18px 18px 0 0;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #chat-header .chat-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg,#fbbf24,#f59e0b);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+    }
+    #chat-header .chat-title-block { flex: 1; min-width: 0; }
+    #chat-header .chat-title {
+      font-size: 0.82rem; font-weight: 800; color: #fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+    #chat-header .chat-subtitle {
+      font-size: 0.68rem; color: rgba(255,255,255,0.75); margin-top: 1px;
+    }
+    #chat-header .chat-live-badge {
+      background: #ef4444; color: #fff;
+      font-size: 0.58rem; font-weight: 800;
+      padding: 2px 7px; border-radius: 20px;
+      letter-spacing: 0.08em; flex-shrink: 0;
+      animation: livePulse 2s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    #chat-messages {
+      background: rgba(10,5,30,0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-left: 1px solid rgba(196,167,255,0.2);
+      border-right: 1px solid rgba(196,167,255,0.2);
+      min-height: 110px;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(168,85,247,0.4) transparent;
+    }
+    #chat-messages::-webkit-scrollbar { width: 4px; }
+    #chat-messages::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.4); border-radius: 4px; }
+
+    .chat-msg {
+      font-size: 0.75rem; line-height: 1.4;
+      color: rgba(255,255,255,0.88);
+      animation: msgAppear 0.3s ease forwards;
+    }
+    @keyframes msgAppear { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    .chat-msg .msg-name { font-weight: 700; color: #c4b5fd; margin-right: 4px; }
+    .chat-msg .msg-system { color: rgba(167,243,208,0.8); font-style: italic; }
+
+    #chat-form {
+      background: rgba(15,5,40,0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(196,167,255,0.28);
+      border-top: 1px solid rgba(196,167,255,0.14);
+      border-radius: 0 0 18px 18px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #chat-form input {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(196,167,255,0.25);
+      border-radius: 10px;
+      color: #f1f5f9;
+      font-size: 0.78rem;
+      padding: 8px 11px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    #chat-form input::placeholder { color: rgba(255,255,255,0.35); }
+    #chat-form input:focus {
+      border-color: rgba(168,85,247,0.7);
+      background: rgba(255,255,255,0.11);
+    }
+    #chat-form textarea {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(196,167,255,0.25);
+      border-radius: 10px;
+      color: #f1f5f9;
+      font-size: 0.78rem;
+      padding: 8px 11px;
+      outline: none;
+      resize: none;
+      height: 60px;
+      transition: border-color 0.2s, background 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    #chat-form textarea::placeholder { color: rgba(255,255,255,0.35); }
+    #chat-form textarea:focus {
+      border-color: rgba(168,85,247,0.7);
+      background: rgba(255,255,255,0.11);
+    }
+    #chat-send-btn {
+      background: linear-gradient(135deg, #7c3aed, #a855f7);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 9px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+    }
+    #chat-send-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(168,85,247,0.5);
+    }
+    #chat-send-btn:active:not(:disabled) { transform: scale(0.97); }
+    #chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #chat-send-btn .btn-spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    #chat-send-btn.loading .btn-spinner { display: block; }
+    #chat-send-btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 
@@ -160,6 +331,11 @@
     <div id="floor-shadow"></div>
     <div id="petitioners-stage"></div>
     
+    <!-- Imagen de posición base: cubre el flash transparente entre animaciones -->
+    <img id="default-pose"
+         src="/posicion%20default.jpeg"
+         style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; z-index:9; pointer-events:none;" />
+
     <canvas id="canvas"></canvas>
 
     <div id="prayer-overlay">
@@ -174,6 +350,29 @@
 
     <div id="start-overlay">
       <button id="start-btn">▶️ Iniciar Transmisión</button>
+    </div>
+  </div>
+
+  <!-- ── Chat Interactivo ────────────────────────────────── -->
+  <div id="chat-panel">
+    <div id="chat-header">
+      <div class="chat-avatar">🙏</div>
+      <div class="chat-title-block">
+        <div class="chat-title">Hermana Carmen Ora Por Ti</div>
+        <div class="chat-subtitle">Envía tu petición de oración</div>
+      </div>
+      <div class="chat-live-badge">EN VIVO</div>
+    </div>
+    <div id="chat-messages">
+      <div class="chat-msg"><span class="msg-system">🙏 Bienvenido/a. Escribe tu nombre y tu petición y la Hermana Carmen orará por ti.</span></div>
+    </div>
+    <div id="chat-form">
+      <input id="chat-name" type="text" maxlength="30" placeholder="Tu nombre..." autocomplete="off">
+      <textarea id="chat-petition" maxlength="200" placeholder="Tu petición de oración..."></textarea>
+      <button id="chat-send-btn" onclick="sendPrayer()">
+        <div class="btn-spinner"></div>
+        <span class="btn-text">🕊️ Enviar Petición</span>
+      </button>
     </div>
   </div>
 
@@ -929,11 +1128,116 @@
       if (!cfg) return;
       if (!cfg.visible) {
         overlay.classList.remove('visible');
+      } else {
+        instrEl.textContent = cfg.instruction || '✍️ Escribe en el chat tu petición de oración';
+        overlay.classList.add('visible');
+      }
+      // Chat interactivo web
+      const chatPanel = document.getElementById('chat-panel');
+      if (cfg.chatVisible) {
+        chatPanel.classList.add('visible');
+      } else {
+        chatPanel.classList.remove('visible');
+      }
+    }
+
+    // ── Chat Interactivo: lógica de envío ─────────────────────────
+    const chatMessages = document.getElementById('chat-messages');
+    let chatCooldown = false;
+
+    function addChatMsg(nombre, texto, esnatural) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      if (esnatural) {
+        div.innerHTML = `<span class="msg-name">${sanitize(nombre)}:</span>${sanitize(texto)}`;
+      } else {
+        div.innerHTML = `<span class="msg-system">${texto}</span>`;
+      }
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      // Mantener máximo 30 mensajes
+      while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
+    }
+
+    function addChatMsgUser(nombre, texto) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML = `<span class="msg-name">${sanitize(nombre)}:</span>${sanitize(texto)}`;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
+    }
+
+    function addChatMsgSystem(texto) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML = `<span class="msg-system">${texto}</span>`;
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
+    }
+
+    function sanitize(str) {
+      return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function sendPrayer() {
+      if (chatCooldown) return;
+      const nameEl = document.getElementById('chat-name');
+      const petEl  = document.getElementById('chat-petition');
+      const btn    = document.getElementById('chat-send-btn');
+
+      const nombre  = nameEl.value.trim() || 'Visitante';
+      const peticion = petEl.value.trim();
+
+      if (!peticion) {
+        petEl.focus();
+        petEl.style.borderColor = 'rgba(239,68,68,0.7)';
+        setTimeout(() => petEl.style.borderColor = '', 1500);
         return;
       }
-      instrEl.textContent = cfg.instruction || '✍️ Escribe en el chat tu petición de oración';
-      overlay.classList.add('visible');
+
+      // UI → cargando
+      btn.classList.add('loading');
+      btn.disabled = true;
+      chatCooldown = true;
+
+      try {
+        const resp = await fetch('/api/prayer-simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: nombre, peticion })
+        });
+
+        if (resp.ok) {
+          addChatMsgUser(nombre, peticion);
+          addChatMsgSystem(`🙏 La Hermana Carmen orará por ti, ${sanitize(nombre)}.`);
+          petEl.value = '';
+          // Cooldown 30 s para no saturar
+          setTimeout(() => {
+            chatCooldown = false;
+            btn.disabled = false;
+            btn.classList.remove('loading');
+          }, 30000);
+          addChatMsgSystem('⏳ Espera 30 segundos antes de enviar otra petición.');
+        } else {
+          throw new Error('Server error');
+        }
+      } catch(e) {
+        addChatMsgSystem('❌ Ocurrió un error. Inténtalo de nuevo.');
+        chatCooldown = false;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+      }
     }
+
+    // Enter en textarea no envía (permite saltos de línea); Shift+Enter tampoco
+    document.getElementById('chat-petition').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrayer(); }
+    });
+    document.getElementById('chat-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('chat-petition').focus();
+    });
 
     // Cargar estado del overlay al abrir el reproductor
     fetch('/api/overlay').then(r => r.json()).then(applyOverlay).catch(() => {});
