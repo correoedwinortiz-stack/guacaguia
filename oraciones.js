@@ -11,9 +11,7 @@ const FormData = require("form-data");
 const readline = require("readline");
 const fs = require("fs");
 const path = require("path");
-const { execSync, execFile } = require("child_process");
-const { promisify } = require("util");
-const execFileP = promisify(execFile);
+const { Readable } = require("stream");
 
 // ── Validar configuración ────────────────────────────────────
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY1 || process.env.GROQ_API_KEY1;
@@ -137,45 +135,11 @@ function setEdgeVoice(voice) {
   if (voice) currentEdgeVoice = voice;
 }
 
-// ── Buscar un Python con edge-tts instalado ──────────────────────────────
-// El paquete npm "msedge-tts" quedó obsoleto (Microsoft cambió su API y se
-// cuelga esperando respuesta). El edge-tts de Python sí funciona; preferimos
-// el venv del proyecto si existe.
-let _edgeTtsPython = null;
-
-function findEdgeTtsPython() {
-  const candidates = [];
-  if (process.platform === 'win32') {
-    candidates.push(path.join(__dirname, 'venv', 'Scripts', 'python.exe'));
-    candidates.push(path.join(__dirname, '.venv', 'Scripts', 'python.exe'));
-  } else {
-    candidates.push(path.join(__dirname, 'venv', 'bin', 'python'));
-    candidates.push(path.join(__dirname, '.venv', 'bin', 'python'));
-  }
-  candidates.push('python', 'python3'); // en PATH, si tiene edge-tts
-
-  for (const py of candidates) {
-    try {
-      execSync(`"${py}" -c "import edge_tts"`, { stdio: 'pipe', timeout: 10000 });
-      return py;
-    } catch (_) { /* seguir buscando */ }
-  }
-  return null;
-}
-
-// Voz de respaldo: si la voz elegida falla (p. ej. Microsoft la deshabilitó),
-// se reintenta automáticamente con esta voz garantizada.
+// ── Edge TTS — puro Node.js (edge-tts-universal, sin Python) ───────────────
+// Voz de respaldo: si la voz elegida falla, se reintenta con esta.
 const VOZ_BASE_EDGE = 'es-CO-SalomeNeural';
 
-// Sintetiza llamando a edge-tts de Python de forma ASÍNCRONA (execFile no
-// congela el servidor) y con timeout para que NUNCA se cuelgue (el paquete
-// npm msedge-tts se quedaba colgado para siempre).
 async function sintetizarConPythonEdge(texto, outputPath) {
-  if (!_edgeTtsPython) _edgeTtsPython = findEdgeTtsPython();
-  if (!_edgeTtsPython) {
-    throw new Error('No se encontró Python con edge-tts. Instálalo: pip install edge-tts');
-  }
-
   // Intentar primero con la voz elegida; si falla, reintentar con la voz base.
   const vocesAProbar = [currentEdgeVoice];
   if (currentEdgeVoice !== VOZ_BASE_EDGE) vocesAProbar.push(VOZ_BASE_EDGE);
@@ -186,7 +150,7 @@ async function sintetizarConPythonEdge(texto, outputPath) {
       console.warn(`⚠️ Voz "${currentEdgeVoice}" falló. Reintentando con la voz base (${voz})...`);
     }
     try {
-      await sintetizarConVozPython(voz, texto, outputPath);
+      await sintetizarConEdgeNode(voz, texto, outputPath);
       return outputPath;
     } catch (err) {
       ultimoError = err;
@@ -196,22 +160,18 @@ async function sintetizarConPythonEdge(texto, outputPath) {
   throw ultimoError;
 }
 
-async function sintetizarConVozPython(voz, texto, outputPath) {
-  const textoPath = path.join(__dirname, `tts_text_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.txt`);
-  fs.writeFileSync(textoPath, texto, 'utf8');
-  try {
-    await execFileP(
-      _edgeTtsPython,
-      ['-m', 'edge_tts', '--voice', voz, '--file', textoPath, '--write-media', outputPath],
-      { timeout: 30000 }
-    );
-  } finally {
-    try { fs.unlinkSync(textoPath); } catch (_) {}
+async function sintetizarConEdgeNode(voz, texto, outputPath) {
+  const { Communicate } = require('edge-tts-universal');
+  const comm = new Communicate(texto, { voice: voz });
+  const chunks = [];
+  for await (const chunk of comm.stream()) {
+    if (chunk.type === 'audio') chunks.push(chunk.data);
   }
-  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
-    throw new Error(`edge-tts (${voz}) no generó audio`);
+  const buf = Buffer.concat(chunks);
+  fs.writeFileSync(outputPath, buf);
+  if (buf.length === 0) {
+    throw new Error(`edge-tts-universal (${voz}) no generó audio`);
   }
-  return outputPath;
 }
 
 // ── Llaves de Gradium (escalera) ──────────────────────────────────────────
