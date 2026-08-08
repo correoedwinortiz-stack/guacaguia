@@ -745,7 +745,10 @@ Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quo
     startBtn.addEventListener('click', () => {
       applyTtsBoostOnce(); // gesto del usuario → contexto activo → refuerzo de voz
       startOverlay.style.display = 'none';
-      bgMusicEl.play().catch(()=>{});   bgMusicEl.pause();
+      bgMusicEl.play().catch(()=>{});
+      if (!currentMusicType || isPraying) {
+        bgMusicEl.pause();
+      }
       ttsAudioEl.play().catch(()=>{});  ttsAudioEl.pause();
       switchAnimation('Respiración calmada');
       if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(()=>{});
