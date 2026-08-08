@@ -265,12 +265,13 @@
   <script>
     const HOST = window.location.hostname;
     const SERVER = '';
-    const WS_PORT = 8082; // Mamá server runs on 8082
     let ws, online = false;
 
     function conectarWS() {
       try {
-        ws = new WebSocket(`ws://${HOST}:${WS_PORT}`);
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host || 'localhost:3002';
+        ws = new WebSocket(`${protocol}//${host}`);
         ws.onopen = () => {
           online = true;
           document.getElementById('dot').classList.add('online');

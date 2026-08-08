@@ -30,8 +30,8 @@ function getLanIPs() {
 }
 
 const TIKTOK_USERNAME = process.env.TIKTOK_USERNAME || '';
-const WS_PORT = parseInt(process.env.WS_PORT) || 8082;
-const HTTP_PORT = parseInt(process.env.HTTP_PORT) || 3002;
+// En la nube, Render/Railway nos dará el puerto en process.env.PORT
+const PORT = parseInt(process.env.PORT) || parseInt(process.env.HTTP_PORT) || 3002;
 
 if (!TIKTOK_USERNAME || TIKTOK_USERNAME === 'tu_usuario_de_tiktok') {
   console.error('❌ Falta TIKTOK_USERNAME en el archivo .env. Usando modo simulador.');
@@ -102,8 +102,8 @@ function resolveGiftLevel(giftName, diamonds) {
 }
 
 /* ─── Servidor WebSocket ──────────────────────────────── */
-const wss = new WebSocketServer({ port: WS_PORT });
-console.log(`🔌 WebSocket en puerto ${WS_PORT}`);
+const wss = new WebSocketServer({ noServer: true });
+console.log(`🔌 WebSocket inicializado (compartiendo puerto)`);
 const clientes = new Set();
 
 wss.on('connection', (ws) => {
@@ -584,10 +584,10 @@ const httpServer = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify({
       lanIPs: ips,
-      httpPort: HTTP_PORT,
-      wsPort: WS_PORT,
-      playerUrls: ips.map(ip => `http://${ip}:${HTTP_PORT}/player`),
-      adminUrls: ips.map(ip => `http://${ip}:${HTTP_PORT}/admin`)
+      httpPort: PORT,
+      wsPort: PORT,
+      playerUrls: ips.map(ip => `http://${ip}:${PORT}/player`),
+      adminUrls: ips.map(ip => `http://${ip}:${PORT}/admin`)
     }));
     return;
   }
@@ -595,17 +595,23 @@ const httpServer = http.createServer(async (req, res) => {
   res.writeHead(404); res.end('404');
 });
 
-httpServer.listen(HTTP_PORT, '0.0.0.0', () => {
+httpServer.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
+});
+
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🙏 Oraciones Mamá Live`);
-  console.log(`   Reproductor  → http://localhost:${HTTP_PORT}/player`);
-  console.log(`   Reproductor OBS → http://localhost:${HTTP_PORT}/player?obs`);
-  console.log(`   Admin        → http://localhost:${HTTP_PORT}/admin`);
+  console.log(`   Reproductor  → http://localhost:${PORT}/player`);
+  console.log(`   Reproductor OBS → http://localhost:${PORT}/player?obs`);
+  console.log(`   Admin        → http://localhost:${PORT}/admin`);
   const ips = getLanIPs();
   if (ips.length > 0) {
     console.log(`\n📱 Abre el reproductor desde tu celular (misma red WiFi):`);
     ips.forEach(ip => {
-      console.log(`   📺 Player → http://${ip}:${HTTP_PORT}/player`);
-      console.log(`   🎛️ Admin  → http://${ip}:${HTTP_PORT}/admin`);
+      console.log(`   📺 Player → http://${ip}:${PORT}/player`);
+      console.log(`   🎛️ Admin  → http://${ip}:${PORT}/admin`);
     });
   }
   console.log('');

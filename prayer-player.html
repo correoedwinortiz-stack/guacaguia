@@ -719,8 +719,9 @@
     }
 
     function connectWS() {
-      const host = window.location.hostname || 'localhost';
-      ws = new WebSocket(`ws://${host}:8082`);
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'localhost:3002';
+      ws = new WebSocket(`${protocol}//${host}`);
 
       // Al (re)conectar, re-sincroniza el estado de música: si el admin inició
       // alabanza/adoración mientras el reproductor cargaba o estaba reconectando,
