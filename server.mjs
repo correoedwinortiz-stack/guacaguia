@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
+import https from 'https';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 import { TikTokLiveConnection } from 'tiktok-live-connector';
@@ -35,6 +36,66 @@ const PORT = parseInt(process.env.PORT) || parseInt(process.env.HTTP_PORT) || 30
 
 if (!TIKTOK_USERNAME || TIKTOK_USERNAME === 'tu_usuario_de_tiktok') {
   console.error('❌ Falta TIKTOK_USERNAME en el archivo .env. Usando modo simulador.');
+}
+
+// ─── Anti-Spam: Cloudflare Turnstile ────────────────────────────────────────
+const TURNSTILE_SECRET = process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
+const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
+
+// ─── Anti-Spam: Rate Limit por IP ───────────────────────────────────────────
+// Cada IP puede enviar como máximo RATE_MAX peticiones en RATE_WINDOW_MS ms.
+const RATE_WINDOW_MS = 60_000; // 1 minuto
+const RATE_MAX       = 2;      // máximo 2 peticiones por minuto
+const ipRateMap = new Map();   // ip → { count, resetAt }
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  let entry = ipRateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_WINDOW_MS };
+    ipRateMap.set(ip, entry);
+  }
+  entry.count++;
+  return entry.count <= RATE_MAX;
+}
+
+// Limpieza periódica para no acumular IPs antiguas en memoria
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of ipRateMap.entries()) {
+    if (now > e.resetAt) ipRateMap.delete(ip);
+  }
+}, 5 * 60_000);
+
+// ─── Anti-Spam: Filtro de palabras prohibidas ────────────────────────────────
+const BAD_WORDS = /\b(mierda|puta|puto|coño|verga|culo|marica|hijueputa|hp|gonorrea|malparido|idiota|estupido|imbécil|imbecil|pendejo|pelotudo|cabrón|cabron|chingar|chingada|pene|vagina|sexo|pornografía|pornografia|xxx|fornicar|zorra|bastardo|maldito|maldita|pinche|culero|maricón|maricon|travesti|joderr|joder|polla|follar|coger|teta|culo|ano|put[ao]s?)\b/i;
+
+function containsBadWords(text) {
+  return BAD_WORDS.test(text);
+}
+
+// ─── Anti-Spam: Validar token Cloudflare Turnstile ──────────────────────────
+function validateTurnstile(token, ip) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ secret: TURNSTILE_SECRET, response: token, remoteip: ip });
+    const options = {
+      hostname: 'challenges.cloudflare.com',
+      path: '/turnstile/v0/siteverify',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    };
+    const req = https.request(options, (resp) => {
+      let data = '';
+      resp.on('data', chunk => data += chunk);
+      resp.on('end', () => {
+        try { resolve(JSON.parse(data).success === true); }
+        catch (_) { resolve(false); }
+      });
+    });
+    req.on('error', () => resolve(false));
+    req.write(body);
+    req.end();
+  });
 }
 
 // Limpiar archivos huérfanos al arrancar
@@ -210,8 +271,11 @@ const httpServer = http.createServer(async (req, res) => {
   if (urlBase === '/' || urlBase === '/player') {
     const htmlPath = path.join(__dirname, 'prayer-player.html');
     if (!fs.existsSync(htmlPath)) { res.writeHead(404); res.end('prayer-player.html no encontrado'); return; }
+    // Inyectar el Site Key de Turnstile para que el frontend lo use al renderizar el captcha
+    const html = fs.readFileSync(htmlPath, 'utf-8')
+      .replace('__TURNSTILE_SITE_KEY__', TURNSTILE_SITE_KEY);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(fs.readFileSync(htmlPath));
+    res.end(html);
     return;
   }
   
@@ -380,13 +444,40 @@ const httpServer = http.createServer(async (req, res) => {
   }
 
   if (req.url === '/api/prayer-simulate' && req.method === 'POST') {
+    // Obtener IP real (Render usa proxy, la IP real viene en x-forwarded-for)
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
     let body = '';
     req.on('data', chunk => body += chunk.toString());
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const data = JSON.parse(body || '{}');
-        const username = data.username || 'TestUser';
-        const peticion = data.peticion || 'oración general';
+        const username = (data.username || 'Visitante').trim().slice(0, 30);
+        const peticion = (data.peticion || '').trim().slice(0, 200);
+        const token    = data.turnstileToken || '';
+
+        // 1) Rate Limit por IP
+        if (!checkRateLimit(ip)) {
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'rate_limit', message: 'Espera un momento antes de enviar otra petición.' }));
+          return;
+        }
+
+        // 2) Filtro de palabras prohibidas
+        if (containsBadWords(peticion) || containsBadWords(username)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'bad_words', message: 'Tu mensaje contiene palabras no permitidas.' }));
+          return;
+        }
+
+        // 3) Validación Cloudflare Turnstile
+        const turnstileOk = await validateTurnstile(token, ip);
+        if (!turnstileOk) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'captcha', message: 'Verificación de seguridad fallida. Intenta de nuevo.' }));
+          return;
+        }
+
+        // ✅ Todo OK: encolar la petición de oración
         prayerEngine.receiveChatMessage(username, `/oracion ${peticion}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, username, peticion }));

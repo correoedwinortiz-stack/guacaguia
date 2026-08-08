@@ -14,6 +14,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sedgwick+Ave&display=swap" rel="stylesheet">
+  <!-- Cloudflare Turnstile (anti-spam captcha invisible) -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+  <!-- Site key inyectado por el servidor -->
+  <script>window.TURNSTILE_SITE_KEY = '__TURNSTILE_SITE_KEY__';</script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -365,6 +369,8 @@
       <input id="chat-name" type="text" maxlength="30" placeholder="Tu nombre (ej: María)" autocomplete="off">
       <textarea id="chat-petition" maxlength="200" placeholder="Tu petición de oración...
 Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quot;oro por mis hijos&quot;"></textarea>
+      <!-- Widget invisible de Cloudflare Turnstile -->
+      <div id="turnstile-widget"></div>
       <button id="chat-send-btn" onclick="sendPrayer()">
         <div class="btn-spinner"></div>
         <span class="btn-text">🕊️ Enviar Petición</span>
@@ -1157,7 +1163,6 @@ Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quo
       // Mantener máximo 30 mensajes
       while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
     }
-
     function addChatMsgUser(nombre, texto) {
       const div = document.createElement('div');
       div.className = 'chat-msg';
@@ -1180,6 +1185,28 @@ Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quo
       return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    // ── Cloudflare Turnstile (captcha invisible) ────────────────────────────
+    let turnstileWidgetId = null;
+    let turnstileToken    = null;
+
+    function initTurnstile() {
+      if (!window.turnstile || turnstileWidgetId !== null) return;
+      const siteKey = window.TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
+      turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
+        sitekey: siteKey,
+        size: 'invisible',
+        callback: (token) => { turnstileToken = token; },
+        'expired-callback': () => { turnstileToken = null; }
+      });
+    }
+    // Inicializar cuando el script de Turnstile cargue
+    if (window.turnstile) {
+      initTurnstile();
+    } else {
+      const ts = document.querySelector('script[src*="turnstile"]');
+      if (ts) ts.addEventListener('load', initTurnstile);
+    }
+
     async function sendPrayer() {
       if (chatCooldown) return;
       const nameEl = document.getElementById('chat-name');
@@ -1196,6 +1223,18 @@ Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quo
         return;
       }
 
+      // Asegurarse de que Turnstile esté inicializado y ejecutar challenge
+      if (!turnstileWidgetId) initTurnstile();
+      if (window.turnstile && turnstileWidgetId !== null) {
+        window.turnstile.execute(turnstileWidgetId);
+        // Esperar hasta 3s a que llegue el token
+        let waited = 0;
+        while (!turnstileToken && waited < 3000) {
+          await new Promise(r => setTimeout(r, 100));
+          waited += 100;
+        }
+      }
+
       // UI → cargando
       btn.classList.add('loading');
       btn.disabled = true;
@@ -1205,25 +1244,38 @@ Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quo
         const resp = await fetch('/api/prayer-simulate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: nombre, peticion })
+          body: JSON.stringify({ username: nombre, peticion, turnstileToken: turnstileToken || '' })
         });
+
+        const json = await resp.json().catch(() => ({}));
 
         if (resp.ok) {
           addChatMsgUser(nombre, peticion);
           addChatMsgSystem(`🙏 La Hermana Carmen orará por ti, ${sanitize(nombre)}.`);
           petEl.value = '';
-          // Cooldown 30 s para no saturar
+          turnstileToken = null;
+          if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
+          // Cooldown 60s para alinear con el rate limit del servidor
           setTimeout(() => {
             chatCooldown = false;
             btn.disabled = false;
             btn.classList.remove('loading');
-          }, 30000);
-          addChatMsgSystem('⏳ Espera 30 segundos antes de enviar otra petición.');
+          }, 60000);
+          addChatMsgSystem('⏳ Espera 1 minuto antes de enviar otra petición.');
+        } else if (resp.status === 429 || json.error === 'rate_limit') {
+          addChatMsgSystem('⏳ Por favor espera un momento antes de enviar otra petición.');
+          chatCooldown = false; btn.disabled = false; btn.classList.remove('loading');
+        } else if (json.error === 'bad_words') {
+          addChatMsgSystem('⛔ Tu mensaje contiene palabras no permitidas. Por favor escribe con respeto.');
+          chatCooldown = false; btn.disabled = false; btn.classList.remove('loading');
+        } else if (json.error === 'captcha') {
+          addChatMsgSystem('🔒 Verificación de seguridad fallida. Intenta de nuevo en un momento.');
+          chatCooldown = false; btn.disabled = false; btn.classList.remove('loading');
         } else {
           throw new Error('Server error');
         }
       } catch(e) {
-        addChatMsgSystem('❌ Ocurrió un error. Inténtalo de nuevo.');
+        addChatMsgSystem('⚠️ Ocurrió un error. Inténtalo de nuevo.');
         chatCooldown = false;
         btn.disabled = false;
         btn.classList.remove('loading');
