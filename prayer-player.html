@@ -62,7 +62,7 @@
     @keyframes petitioner-appear { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
     .petitioner.leaving { animation: petitioner-leave 0.6s ease forwards; }
     @keyframes petitioner-leave { to { opacity: 0; transform: scale(0.85); } }
-    .petitioner img.body { width: 100%; display: block; opacity: 0.96; }
+    .petitioner img.body { width: 100%; display: block; opacity: 1; }
     .petitioner .avatar {
       position: absolute; top: -5%; left: 50%; transform: translateX(-50%);
       width: 30%; aspect-ratio: 1; border-radius: 50%; background-size: cover; background-position: center;
@@ -94,9 +94,9 @@
     .petitioner[data-slot="R3_3"] { bottom: 38%; right: 14%; width: 46%; z-index: 4; }
     .petitioner[data-slot="L3_3"] { bottom: 38%; left: 14%; width: 46%; z-index: 4; }
 
-    /* Profundidad atmosférica: las filas más lejanas se ven un poco más desvanecidas */
-    .petitioner[data-slot^="R2_"] img.body, .petitioner[data-slot^="L2_"] img.body { opacity: 0.85; }
-    .petitioner[data-slot^="R3_"] img.body, .petitioner[data-slot^="L3_"] img.body { opacity: 0.72; }
+    /* Profundidad atmosférica desactivada para evitar aspecto transparente */
+    .petitioner[data-slot^="R2_"] img.body, .petitioner[data-slot^="L2_"] img.body { opacity: 1; }
+    .petitioner[data-slot^="R3_"] img.body, .petitioner[data-slot^="L3_"] img.body { opacity: 1; }
 
     /* Los videos de buffer son invisibles — el render los consume por WebGL */
     #vid1, #vid2 { display: none; }
