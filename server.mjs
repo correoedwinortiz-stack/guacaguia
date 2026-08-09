@@ -148,8 +148,8 @@ if (!fs.existsSync(ADORACION_DIR)) fs.mkdirSync(ADORACION_DIR);
 
 let overlayConfig = {
   visible: false,
-  instruction: '✍️ Escribe en el chat tu petición de oración',
-  chatVisible: false,
+  instruction: '🙏 Escribe en el chat tu petición de oración',
+  chatVisible: true,
   gifts: []
 };
 
@@ -203,6 +203,8 @@ const prayerEngine = new PrayerEngine({
   playAnimation: (id) => broadcast({ type: 'prayer_animation', animation: id })
 });
 prayerEngine.start();
+// Iniciar la música de alabanza por defecto
+prayerEngine.startMusicMode('alabanza');
 
 /* ─── Cola de Reacciones (regalos, compartidos, seguidores, likes, saludos) ─ */
 // Las reacciones se procesan UNA a la vez y espaciadas para que las animaciones
