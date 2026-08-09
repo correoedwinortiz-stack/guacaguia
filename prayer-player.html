@@ -159,7 +159,7 @@
       position: absolute;
       top: 10px;
       left: 50%;
-      width: min(320px, 88vw);
+      width: min(380px, 92vw);
       z-index: 50;
       display: none;
       flex-direction: column;
@@ -182,27 +182,26 @@
       border: 1px solid rgba(196,167,255,0.35);
       border-bottom: none;
       border-radius: 18px 18px 0 0;
-      padding: 12px 16px;
+      padding: 8px 12px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     #chat-header .chat-avatar {
-      width: 38px; height: 38px; border-radius: 50%;
+      width: 28px; height: 28px; border-radius: 50%;
       background: linear-gradient(135deg,#fbbf24,#f59e0b);
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px; flex-shrink: 0;
+      font-size: 14px; flex-shrink: 0;
       box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
     }
     #chat-header .chat-title-block { flex: 1; min-width: 0; }
     #chat-header .chat-title {
-      font-size: 0.82rem; font-weight: 800; color: #fff;
+      font-size: 0.8rem; font-weight: 800; color: #fff;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       text-shadow: 0 1px 3px rgba(0,0,0,0.4);
     }
-    #chat-header .chat-subtitle {
-      font-size: 0.68rem; color: rgba(255,255,255,0.75); margin-top: 1px;
-    }
+    /* subtítulo oculto para reducir altura */
+    #chat-header .chat-subtitle { display: none; }
     #chat-header .chat-live-badge {
       background: #ef4444; color: #fff;
       font-size: 0.58rem; font-weight: 800;
@@ -221,16 +220,17 @@
       -webkit-backdrop-filter: blur(14px);
       border-left: 1px solid rgba(196,167,255,0.2);
       border-right: 1px solid rgba(196,167,255,0.2);
-      min-height: 50px;
-      max-height: 90px;
+      min-height: 0;
+      max-height: 60px;
       overflow-y: auto;
-      padding: 10px 12px;
-      display: flex;
+      padding: 6px 12px;
+      display: none;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
       scrollbar-width: thin;
       scrollbar-color: rgba(168,85,247,0.4) transparent;
     }
+    #chat-messages.has-messages { display: flex; }
     #chat-messages::-webkit-scrollbar { width: 4px; }
     #chat-messages::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.4); border-radius: 4px; }
 
@@ -250,18 +250,18 @@
       border: 1px solid rgba(196,167,255,0.28);
       border-top: 1px solid rgba(196,167,255,0.14);
       border-radius: 0 0 18px 18px;
-      padding: 12px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 5px;
     }
     #chat-form input {
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(196,167,255,0.25);
-      border-radius: 10px;
+      border-radius: 8px;
       color: #f1f5f9;
-      font-size: 0.78rem;
-      padding: 8px 11px;
+      font-size: 0.76rem;
+      padding: 6px 10px;
       outline: none;
       transition: border-color 0.2s, background 0.2s;
       font-family: 'Inter', sans-serif;
@@ -274,13 +274,13 @@
     #chat-form textarea {
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(196,167,255,0.25);
-      border-radius: 10px;
+      border-radius: 8px;
       color: #f1f5f9;
-      font-size: 0.78rem;
-      padding: 8px 11px;
+      font-size: 0.76rem;
+      padding: 6px 10px;
       outline: none;
       resize: none;
-      height: 60px;
+      height: 38px;
       transition: border-color 0.2s, background 0.2s;
       font-family: 'Inter', sans-serif;
     }
@@ -293,9 +293,9 @@
       background: linear-gradient(135deg, #7c3aed, #a855f7);
       color: #fff;
       border: none;
-      border-radius: 10px;
-      padding: 9px;
-      font-size: 0.8rem;
+      border-radius: 8px;
+      padding: 7px;
+      font-size: 0.76rem;
       font-weight: 700;
       cursor: pointer;
       transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
@@ -1168,6 +1168,7 @@ Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quo
       div.className = 'chat-msg';
       div.innerHTML = `<span class="msg-name">${sanitize(nombre)}:</span>${sanitize(texto)}`;
       chatMessages.appendChild(div);
+      chatMessages.classList.add('has-messages');
       chatMessages.scrollTop = chatMessages.scrollHeight;
       while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
     }
@@ -1177,6 +1178,7 @@ Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quo
       div.className = 'chat-msg';
       div.innerHTML = `<span class="msg-system">${texto}</span>`;
       chatMessages.appendChild(div);
+      chatMessages.classList.add('has-messages');
       chatMessages.scrollTop = chatMessages.scrollHeight;
       while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
     }
