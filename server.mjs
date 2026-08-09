@@ -488,6 +488,16 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── Ping keep-alive (para monitorear desde otra VM) ──────────────────────
+  if (req.url === '/ping' && req.method === 'GET') {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'desconocida';
+    const hora = new Date().toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' });
+    console.log(`🏓 [${hora}] PING recibido desde IP: ${ip}`);
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+    return;
+  }
+
   // Admin Config
   if (req.url === '/admin/music' && req.method === 'POST') {
     let body = '';
