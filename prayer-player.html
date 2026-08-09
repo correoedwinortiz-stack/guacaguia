@@ -255,37 +255,26 @@
       flex-direction: column;
       gap: 4px;
     }
+    .chat-inputs-row {
+      display: flex;
+      gap: 4px;
+      width: 100%;
+    }
     #chat-form input {
       background: rgba(255,255,255,0.07);
       border: 1px solid rgba(196,167,255,0.25);
       border-radius: 6px;
       color: #f1f5f9;
       font-size: 0.72rem;
-      padding: 4px 8px;
+      padding: 4px 6px;
       outline: none;
       transition: border-color 0.2s, background 0.2s;
       font-family: 'Inter', sans-serif;
     }
-    #chat-form input::placeholder { color: rgba(255,255,255,0.35); }
+    #chat-name { width: 35%; }
+    #chat-petition { flex: 1; }
+    #chat-form input::placeholder { color: rgba(255,255,255,0.4); }
     #chat-form input:focus {
-      border-color: rgba(168,85,247,0.7);
-      background: rgba(255,255,255,0.11);
-    }
-    #chat-form textarea {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(196,167,255,0.25);
-      border-radius: 6px;
-      color: #f1f5f9;
-      font-size: 0.72rem;
-      padding: 4px 8px;
-      outline: none;
-      resize: none;
-      height: 30px;
-      transition: border-color 0.2s, background 0.2s;
-      font-family: 'Inter', sans-serif;
-    }
-    #chat-form textarea::placeholder { color: rgba(255,255,255,0.35); }
-    #chat-form textarea:focus {
       border-color: rgba(168,85,247,0.7);
       background: rgba(255,255,255,0.11);
     }
@@ -366,9 +355,10 @@
       <div class="chat-msg"><span class="msg-system">🙏 Bienvenido/a. Escribe tu nombre y tu petición y la Hermana Carmen orará por ti.</span></div>
     </div>
     <div id="chat-form">
-      <input id="chat-name" type="text" maxlength="30" placeholder="Tu nombre (ej: María)" autocomplete="off">
-      <textarea id="chat-petition" maxlength="200" placeholder="Tu petición de oración...
-Ej: &quot;oración por mi familia&quot;, &quot;oración por mi salud&quot;, &quot;oro por mis hijos&quot;"></textarea>
+      <div class="chat-inputs-row">
+        <input id="chat-name" type="text" maxlength="30" placeholder="Nombre" autocomplete="off">
+        <input id="chat-petition" type="text" maxlength="200" placeholder="Escribe tu petición aquí..." autocomplete="off">
+      </div>
       <!-- Widget invisible de Cloudflare Turnstile -->
       <div id="turnstile-widget"></div>
       <button id="chat-send-btn" onclick="sendPrayer()">
