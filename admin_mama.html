@@ -344,7 +344,7 @@
       const peticion = document.getElementById('peticion').value.trim() || 'oración general';
       log(`📤 Simulando petición de @${username}: "${peticion}"...`);
       try {
-        const resp = await fetch(`${SERVER}/api/prayer-simulate`, {
+        const resp = await fetch(`${SERVER}/api/admin/prayer-simulate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, peticion })
@@ -396,7 +396,7 @@
     async function testPetitionerUI() {
       const names = ['Carlos', 'Ana', 'Luis', 'Sofia'];
       const rndName = names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 100);
-      await fetch('/api/prayer-simulate', {
+      await fetch('/api/admin/prayer-simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: rndName, peticion: 'petición de prueba UI' })

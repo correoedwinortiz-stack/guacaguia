@@ -488,6 +488,23 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── Simular Petición desde el ADMIN (Sin Captcha ni Rate Limit) ─────────────
+  if (req.url === '/api/admin/prayer-simulate' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const data = JSON.parse(body || '{}');
+        const username = (data.username || 'Admin').trim().slice(0, 30);
+        const peticion = (data.peticion || '').trim().slice(0, 200);
+        prayerEngine.receiveChatMessage(username, `/oracion ${peticion}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, username, peticion }));
+      } catch (e) { res.writeHead(400); res.end('Invalid JSON'); }
+    });
+    return;
+  }
+
   // ── Ping keep-alive (para monitorear desde otra VM) ──────────────────────
   if (req.url === '/ping' && req.method === 'GET') {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'desconocida';
