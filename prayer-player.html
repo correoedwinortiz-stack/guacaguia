@@ -972,7 +972,8 @@
                 { name: closingName, duration: 4500 }
               ];
 
-              switchAnimation('Súplica', 1, null, false, 1500);
+              const startAnim = Math.random() < 0.5 ? 'Súplica' : 'Manos al pecho';
+              switchAnimation(startAnim, 1, null, false, 1500);
               preloadVideo(closingName); // calienta el caché → swap instantáneo
               // Precalienta (una sola vez) las animaciones de reposo: el cambio
               // tras la victoria es inmediato → sin hueco donde la personaje se ve
