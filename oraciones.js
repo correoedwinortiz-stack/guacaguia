@@ -372,23 +372,23 @@ async function sintetizarConFreeAI(texto, outputPath) {
 //  - ttsProvider='edge'    → video cierre "Declaracion de victoria salome"
 async function sintetizarVoz(texto, outputPath) {
 
-  // ── Modo cascade: Free.ai → Gradium → Edge TTS ─────────────────────────────
+  // ── Modo cascade: Gradium → Free.ai → Edge TTS ─────────────────────────────
   if (USE_FREE_TTS === 'cascade') {
-    // 1) Free.ai
-    try {
-      await sintetizarConFreeAI(texto, outputPath);
-      console.log('✅ [cascade] Voz sintetizada con Free.ai');
-      return { path: outputPath, ttsProvider: 'cloned' };
-    } catch (e1) {
-      console.warn(`⚠️  [cascade] Free.ai falló: ${e1.message} → intentando Gradium...`);
-    }
-    // 2) Gradium
+    // 1) Gradium (más rápido)
     try {
       await sintetizarConGradium(texto, outputPath);
       console.log('✅ [cascade] Voz sintetizada con Gradium');
       return { path: outputPath, ttsProvider: 'cloned' };
+    } catch (e1) {
+      console.warn(`⚠️  [cascade] Gradium falló: ${e1.message} → intentando Free.ai...`);
+    }
+    // 2) Free.ai
+    try {
+      await sintetizarConFreeAI(texto, outputPath);
+      console.log('✅ [cascade] Voz sintetizada con Free.ai');
+      return { path: outputPath, ttsProvider: 'cloned' };
     } catch (e2) {
-      console.warn(`⚠️  [cascade] Gradium falló: ${e2.message} → usando Edge TTS de respaldo...`);
+      console.warn(`⚠️  [cascade] Free.ai falló: ${e2.message} → usando Edge TTS de respaldo...`);
     }
     // 3) Edge TTS (último recurso)
     console.log(`🎙️  [cascade] Sintetizando con Edge TTS (${currentEdgeVoice})...`);
