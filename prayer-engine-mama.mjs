@@ -65,9 +65,13 @@ function quitarCierre(texto) {
 }
 
 // Video de cierre según el modo de voz:
-//  - USE_FREE_TTS=true  → Edge TTS (voz de Salomé) → "Declaracion de victoria salome"
-//  - USE_FREE_TTS=false → Voz clonada (Gradium)    → "Declaración de victoria"
-function closingVideoName() {
+//  - ttsProvider='edge'   → Edge TTS (voz de Salomé) → "Declaracion de victoria salome"
+//  - ttsProvider='cloned' → Voz clonada (Gradium/FreeAI) → "Declaración de victoria"
+function closingVideoName(ttsProvider = null) {
+  // Si nos pasan el proveedor explícito (modo cascade), lo usamos directamente.
+  if (ttsProvider === 'edge')   return 'Declaracion de victoria salome';
+  if (ttsProvider === 'cloned') return 'Declaración de victoria';
+  // Fallback: leer la variable de entorno (compatibilidad con modos true/false)
   return process.env.USE_FREE_TTS === 'true' ? 'Declaracion de victoria salome' : 'Declaración de victoria';
 }
 
@@ -350,8 +354,10 @@ export class PrayerEngine {
     const filePath = path.join(__dirname, fileName);
 
     try {
+      let ttsProvider = null;
       if (!estandarItem) {
-        await sintetizarVoz(textoOracion, filePath);
+        const result = await sintetizarVoz(textoOracion, filePath);
+        ttsProvider = result ? result.ttsProvider : null;
         setTimeout(() => { try { fs.unlinkSync(filePath); } catch(_) {} }, 90_000);
       }
 
@@ -383,7 +389,7 @@ export class PrayerEngine {
         isStrong:        isStrong,
         estDurMs:        estDurMs,
         audioDurMs:      audioDurMs,
-        closingVideo:    closingVideoName(),
+        closingVideo:    closingVideoName(ttsProvider),
       });
 
       // Esperamos que el cliente mande 'prayer_ended' cuando terminó su coreografía.

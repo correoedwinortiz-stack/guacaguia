@@ -19,7 +19,7 @@ const GRADIUM_KEY    = process.env.GRADIUM_API_KEY;
 const GRADIUM_VOICE  = process.env.GRADIUM_VOICE_ID;
 const FREEAI_KEY     = process.env.FREEAI_API_KEY;
 const VOICE_PATH     = process.env.VOICE_SAMPLE_PATH || "./voz_mama.wav";
-const USE_FREE_TTS   = process.env.USE_FREE_TTS === "true";
+const USE_FREE_TTS   = process.env.USE_FREE_TTS; // 'true' | 'false' | 'cascade'
 
 if (!OPENROUTER_KEY || OPENROUTER_KEY.includes("tu_")) {
   console.error("❌  Falta OPENROUTER_API_KEY o GROQ_API_KEY en .env");
@@ -30,7 +30,7 @@ if (!OPENROUTER_KEY || OPENROUTER_KEY.includes("tu_")) {
 //  1) Gradium (GRADIUM_API_KEYS/GRADIUM_API_KEY + GRADIUM_VOICE_ID) — primario
 //  2) Free.ai (FREEAI_API_KEY + VOICE_SAMPLE_PATH) — respaldo automático si Gradium falla
 // Si ninguno está configurado avisamos y salimos; la voz gratuita de Edge TTS no necesita llaves.
-if (!USE_FREE_TTS) {
+if (USE_FREE_TTS !== 'true' && USE_FREE_TTS !== 'cascade') {
   const gradiumKeys = obtenerGradiumKeys();
   const tieneGradium = gradiumKeys.length > 0 && GRADIUM_VOICE && !GRADIUM_VOICE.includes("tu_");
   const tieneFreeAI  = FREEAI_KEY && !FREEAI_KEY.includes("tu_") && fs.existsSync(path.resolve(VOICE_PATH));
@@ -366,26 +366,58 @@ async function sintetizarConFreeAI(texto, outputPath) {
   }
 }
 
-// ── Sintetizar voz: Edge TTS (USE_FREE_TTS=true) o mamá (Gradium → Free.ai) ──
+// ── Sintetizar voz: Edge TTS | Free.ai | Gradium | cascade ──────────────────
+// Retorna { path: string, ttsProvider: 'cloned' | 'edge' }
+//  - ttsProvider='cloned'  → video cierre "Declaración de victoria"
+//  - ttsProvider='edge'    → video cierre "Declaracion de victoria salome"
 async function sintetizarVoz(texto, outputPath) {
-  if (USE_FREE_TTS) {
+
+  // ── Modo cascade: Free.ai → Gradium → Edge TTS ─────────────────────────────
+  if (USE_FREE_TTS === 'cascade') {
+    // 1) Free.ai
+    try {
+      await sintetizarConFreeAI(texto, outputPath);
+      console.log('✅ [cascade] Voz sintetizada con Free.ai');
+      return { path: outputPath, ttsProvider: 'cloned' };
+    } catch (e1) {
+      console.warn(`⚠️  [cascade] Free.ai falló: ${e1.message} → intentando Gradium...`);
+    }
+    // 2) Gradium
+    try {
+      await sintetizarConGradium(texto, outputPath);
+      console.log('✅ [cascade] Voz sintetizada con Gradium');
+      return { path: outputPath, ttsProvider: 'cloned' };
+    } catch (e2) {
+      console.warn(`⚠️  [cascade] Gradium falló: ${e2.message} → usando Edge TTS de respaldo...`);
+    }
+    // 3) Edge TTS (último recurso)
+    console.log(`🎙️  [cascade] Sintetizando con Edge TTS (${currentEdgeVoice})...`);
+    await sintetizarConPythonEdge(texto, outputPath);
+    return { path: outputPath, ttsProvider: 'edge' };
+  }
+
+  // ── Modo true: solo Edge TTS ────────────────────────────────────────────────
+  if (USE_FREE_TTS === 'true') {
     console.log(`🎙️  Sintetizando con la voz gratuita (Edge TTS Python - ${currentEdgeVoice})...`);
     try {
-      return await sintetizarConPythonEdge(texto, outputPath);
+      await sintetizarConPythonEdge(texto, outputPath);
+      return { path: outputPath, ttsProvider: 'edge' };
     } catch (err) {
       console.error("❌ Falló Edge TTS:", err.message);
       throw err;
     }
   }
 
-  // Voz de mamá: primero Gradium; si falla (sin saldo, límite, error), Free.ai como respaldo.
+  // ── Modo false (por defecto): Gradium → Free.ai ─────────────────────────────
   try {
-    return await sintetizarConGradium(texto, outputPath);
+    await sintetizarConGradium(texto, outputPath);
+    return { path: outputPath, ttsProvider: 'cloned' };
   } catch (gradiumErr) {
     console.warn(`⚠️  Gradium falló: ${gradiumErr.message}`);
     console.warn("    Intentando con Free.ai como respaldo...");
     try {
-      return await sintetizarConFreeAI(texto, outputPath);
+      await sintetizarConFreeAI(texto, outputPath);
+      return { path: outputPath, ttsProvider: 'cloned' };
     } catch (freeAiErr) {
       throw new Error(`❌ Gradium y Free.ai fallaron. Último error: ${freeAiErr.message}`);
     }
