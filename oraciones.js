@@ -2,7 +2,7 @@
 //  🙏 Generador de Oraciones con la voz de mamá
 //  LLM: OpenRouter (gratis, sin límite diario)
 //  TTS: Edge TTS gratuito (USE_FREE_TTS=true) | Gradium (voz clonada)
-//       con respaldo automático de Free.ai (gratis, 30k tokens/día)
+//       con respaldo automático de Qwen3-TTS (HuggingFace, gratis) y Free.ai
 // ============================================================
 
 require("dotenv").config();
@@ -366,31 +366,83 @@ async function sintetizarConFreeAI(texto, outputPath) {
   }
 }
 
-// ── Sintetizar voz: Edge TTS | Free.ai | Gradium | cascade ──────────────────
+// ── Sintetizar con Qwen3-TTS (HuggingFace Space, gratis, sin API key) ─────────
+// Clona la voz a partir de VOICE_SAMPLE_PATH usando el modelo Qwen3-TTS.
+// ~40 segundos por oración. No requiere ningún API key.
+async function sintetizarConQwenTTS(texto, outputPath) {
+  console.log("🎙️  Sintetizando con Qwen3-TTS (Hugging Face)...");
+  if (!fs.existsSync(path.resolve(VOICE_PATH))) {
+    throw new Error(`❌ No se encontró el audio de la voz en: ${VOICE_PATH}. Configura VOICE_SAMPLE_PATH en .env`);
+  }
+
+  // Importación dinámica del cliente Gradio (ES Module)
+  const { Client } = await import("@gradio/client");
+
+  const client = await Client.connect("Qwen/Qwen3-TTS");
+
+  const audioBuffer = fs.readFileSync(path.resolve(VOICE_PATH));
+  const audioBlob   = new Blob([audioBuffer], { type: "audio/wav" });
+
+  console.log("   -> Enviando voz de muestra + texto a Qwen3-TTS (puede tardar ~40s)...");
+  const result = await client.predict("/generate_voice_clone", {
+    ref_audio:        audioBlob,
+    ref_text:         "",
+    target_text:      texto,
+    language:         "Spanish",
+    use_xvector_only: true,
+    model_size:       "1.7B"
+  });
+
+  if (!result.data || !result.data[0] || !result.data[0].url) {
+    throw new Error("Qwen3-TTS: La respuesta no contiene URL de audio.");
+  }
+
+  console.log("   -> ¡Audio generado! Descargando...");
+  const audioRes = await fetch(result.data[0].url);
+  if (!audioRes.ok) throw new Error(`Qwen3-TTS: Error al descargar el audio (${audioRes.status})`);
+
+  const buf = await audioRes.buffer();
+  fs.writeFileSync(outputPath, buf);
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
+    throw new Error("Qwen3-TTS: El audio descargado está vacío");
+  }
+  arreglarCabeceraWav(outputPath);
+  return outputPath;
+}
+
+// ── Sintetizar voz: Edge TTS | Qwen3-TTS | Gradium | cascade ──────────────────
 // Retorna { path: string, ttsProvider: 'cloned' | 'edge' }
 //  - ttsProvider='cloned'  → video cierre "Declaración de victoria"
 //  - ttsProvider='edge'    → video cierre "Declaracion de victoria salome"
 async function sintetizarVoz(texto, outputPath) {
 
-  // ── Modo cascade: Gradium → Free.ai → Edge TTS ─────────────────────────────
+  // ── Modo cascade: Gradium → Qwen3-TTS → Free.ai → Edge TTS ──────────────────
   if (USE_FREE_TTS === 'cascade') {
-    // 1) Gradium (más rápido)
+    // 1) Gradium (voz clonada, el más rápido)
     try {
       await sintetizarConGradium(texto, outputPath);
       console.log('✅ [cascade] Voz sintetizada con Gradium');
       return { path: outputPath, ttsProvider: 'cloned' };
     } catch (e1) {
-      console.warn(`⚠️  [cascade] Gradium falló: ${e1.message} → intentando Free.ai...`);
+      console.warn(`⚠️  [cascade] Gradium falló: ${e1.message} → intentando Qwen3-TTS...`);
     }
-    // 2) Free.ai
+    // 2) Qwen3-TTS en HuggingFace (~40s, voz clonada, sin API key)
+    try {
+      await sintetizarConQwenTTS(texto, outputPath);
+      console.log('✅ [cascade] Voz sintetizada con Qwen3-TTS (HuggingFace)');
+      return { path: outputPath, ttsProvider: 'cloned' };
+    } catch (e2) {
+      console.warn(`⚠️  [cascade] Qwen3-TTS falló: ${e2.message} → intentando Free.ai...`);
+    }
+    // 3) Free.ai (más lento, puede tardar 2+ minutos)
     try {
       await sintetizarConFreeAI(texto, outputPath);
       console.log('✅ [cascade] Voz sintetizada con Free.ai');
       return { path: outputPath, ttsProvider: 'cloned' };
-    } catch (e2) {
-      console.warn(`⚠️  [cascade] Free.ai falló: ${e2.message} → usando Edge TTS de respaldo...`);
+    } catch (e3) {
+      console.warn(`⚠️  [cascade] Free.ai falló: ${e3.message} → usando Edge TTS de respaldo...`);
     }
-    // 3) Edge TTS (último recurso)
+    // 4) Edge TTS (último recurso, instantáneo)
     console.log(`🎙️  [cascade] Sintetizando con Edge TTS (${currentEdgeVoice})...`);
     await sintetizarConPythonEdge(texto, outputPath);
     return { path: outputPath, ttsProvider: 'edge' };
