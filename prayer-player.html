@@ -731,6 +731,30 @@
       } catch (_) { /* el audio sigue sonando directo: nunca se pierde */ }
     }
 
+    const MUSIC_AUDIO_GAIN = 2.5; // ≈ +8 dB para que la música suene más fuerte
+    let musicBoostApplied = false;
+
+    function applyMusicBoostOnce(retriesLeft = 8) {
+      if (musicBoostApplied) return;
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx || !bgMusicEl) return;
+        
+        if (!ttsCtx) ttsCtx = new Ctx();
+        if (ttsCtx.state !== 'running') {
+          ttsCtx.resume().catch(() => {});
+          if (retriesLeft > 0) setTimeout(() => applyMusicBoostOnce(retriesLeft - 1), 250);
+          return;
+        }
+        
+        const g = ttsCtx.createGain();
+        g.gain.value = MUSIC_AUDIO_GAIN;
+        ttsCtx.createMediaElementSource(bgMusicEl).connect(g).connect(ttsCtx.destination);
+        musicBoostApplied = true;
+        console.log(`[player] música de fondo reforzada x${MUSIC_AUDIO_GAIN}`);
+      } catch (_) { /* el audio sigue sonando directo */ }
+    }
+
     if (window.location.search.includes('obs')) {
       switchAnimation('Respiración calmada');
     } else {
@@ -810,7 +834,7 @@
       }
       bgMusicEl.loop   = true;
       bgMusicEl.volume = 1;
-      bgMusicEl.play().catch(e => console.warn('bg-music blocked:', e));
+      bgMusicEl.play().then(() => applyMusicBoostOnce()).catch(e => console.warn('bg-music blocked:', e));
 
       const pool = MUSIC_ANIMATIONS[type === 'alabanza' ? 'cantando' : 'adoracion'];
       let streakAnim = '';
