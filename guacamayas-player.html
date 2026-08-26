@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#000000">
+  <title>GuacaGuía: conoce, comprende y vive el Manual de Convivencia</title>
+  <meta name="description" content="Pregunta a la GuacaGuía sobre convivencia escolar.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sedgwick+Ave&display=swap" rel="stylesheet">
+  <!-- Cloudflare Turnstile (anti-spam captcha invisible) -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+  <!-- Site key inyectado por el servidor -->
+  <script>window.TURNSTILE_SITE_KEY = '__TURNSTILE_SITE_KEY__';</script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0a;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #player-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: calc(100vh * 9 / 16);
+      max-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 0;
+      background: #0a0a0a;
+    }
+    /* Videos de la Guacamaya — posición absoluta sobre el contenedor */
+    #vid1, #vid2 {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain; /* Para videos 9x16 */
+      z-index: 10;
+      opacity: 1; /* Mantenemos ambos visibles para evitar destellos de fondo al cambiar */
+      pointer-events: none;
+    }
+    #vid1.active, #vid2.active {
+      z-index: 11; /* El activo simplemente se pone encima */
+    }
+
+    /* Overlay Instrucción */
+    #prayer-overlay {
+      position: absolute; top: 90px; left: 0; right: 0; z-index: 20; display: none;
+      justify-content: center; pointer-events: none; font-family: 'Inter', sans-serif;
+    }
+    #prayer-overlay.visible { display: flex; }
+    #overlay-instruction {
+      color: #f8fafc; font-size: clamp(22px, 4vw, 26px); font-weight: 700; text-align: center;
+      background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(8px); padding: 8px 20px;
+      border-radius: 30px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    #start-overlay {
+      position: absolute; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 9999;
+      display: none; flex-direction: column; align-items: center; justify-content: center; color: white;
+    }
+    #start-btn {
+      padding: 15px 40px; font-size: 20px; font-weight: bold; background: linear-gradient(135deg, #10b981, #059669);
+      border: none; border-radius: 50px; color: white; cursor: pointer;
+    }
+
+    #priority-gift-overlay {
+      position: absolute; top: 60px; right: 15px; z-index: 25; display: none; flex-direction: column;
+      align-items: center; background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(250, 204, 21, 0.8);
+      border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(4px); pointer-events: none; text-align: center;
+    }
+    #priority-gift-overlay.visible { display: flex; }
+    #priority-gift-overlay img { width: 45px; height: 45px; object-fit: contain; }
+    .priority-gift-action { color: #fde68a; font-size: 11px; font-weight: 800; }
+    .priority-gift-name { color: #fff; font-size: 10px; font-weight: 600; }
+
+    @keyframes smackGlass {
+      0% { transform: perspective(800px) translateY(-100vh) translateZ(-400px) rotateX(50deg) rotateZ(calc(var(--rot, 0deg) + 20deg)); opacity: 0; }
+      15% { transform: perspective(800px) translateY(5vh) translateZ(50px) rotateX(-10deg) rotateZ(calc(var(--rot, 0deg) - 5deg)); opacity: 1; }
+      20% { transform: perspective(800px) translateY(0) translateZ(0) rotateX(0) rotateZ(var(--rot, 0deg)); box-shadow: 0 0 60px rgba(255, 255, 255, 0.9); }
+      25% { transform: perspective(800px) translateY(0) translateZ(0) rotateX(0) rotateZ(var(--rot, 0deg)); }
+      85% { opacity: 1; }
+      100% { transform: perspective(800px) translateY(5vh) translateZ(-100px) rotateX(-20deg) rotateZ(var(--rot, 0deg)); opacity: 0; }
+    }
+
+    .greeting-popup {
+      position: absolute; z-index: 50; padding: 14px 20px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+      border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 14px; color: #ffffff;
+      font-weight: 700; font-size: clamp(16px, 3vw, 20px); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+      opacity: 0; max-width: 280px; text-align: center;
+    }
+    .greeting-popup.show { animation: smackGlass 5s forwards; }
+
+    /* ── Chat Interactivo ───────────────────────────────────────── */
+    #chat-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 88%;
+      max-width: 380px;
+      z-index: 50;
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      font-family: 'Inter', sans-serif;
+      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.45));
+      animation: chatSlideUp 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      background: rgba(0, 0, 0, 0.18);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    #chat-panel.visible { display: flex; }
+
+    @keyframes chatSlideUp {
+      from { opacity: 0; transform: translate(-50%, 30px) scale(0.96); }
+      to   { opacity: 1; transform: translate(-50%, 0)    scale(1); }
+    }
+
+    #chat-header {
+      background: rgba(0,0,0,0.15);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #chat-header .chat-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg,#fbbf24,#f59e0b);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; flex-shrink: 0;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+    }
+    #chat-header .chat-title-block { flex: 1; min-width: 0; }
+    #chat-header .chat-title {
+      font-size: 0.72rem; font-weight: 800; color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      line-height: 1.3;
+    }
+    /* subtítulo oculto para reducir altura */
+    #chat-header .chat-subtitle { display: none; }
+    #chat-header .chat-live-badge {
+      background: #ef4444; color: #fff;
+      font-size: 0.58rem; font-weight: 800;
+      padding: 2px 7px; border-radius: 20px;
+      letter-spacing: 0.08em; flex-shrink: 0;
+      animation: livePulse 2s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+      0%,100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    #chat-messages {
+      background: transparent;
+      min-height: 0;
+      max-height: 80px;
+      overflow-y: auto;
+      padding: 8px 12px;
+      display: none;
+      transition: opacity 0.5s ease;
+      opacity: 1;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(168,85,247,0.4) transparent;
+    }
+    #chat-messages.has-messages { display: flex; }
+    #chat-messages::-webkit-scrollbar { width: 4px; }
+    #chat-messages::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.4); border-radius: 4px; }
+
+    .chat-msg {
+      font-size: 0.75rem; line-height: 1.4;
+      color: rgba(255,255,255,0.88);
+      animation: msgAppear 0.3s ease forwards;
+    }
+    @keyframes msgAppear { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+    .chat-msg .msg-name { font-weight: 700; color: #c4b5fd; margin-right: 4px; }
+    .chat-msg .msg-system { color: rgba(167,243,208,0.8); font-style: italic; }
+
+    #chat-form {
+      background: rgba(0,0,0,0.2);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .chat-inputs-row {
+      display: flex;
+      gap: 4px;
+      width: 100%;
+    }
+    #chat-form input {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      color: #f1f5f9;
+      font-size: 0.75rem;
+      padding: 6px 12px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    #chat-name { width: 30%; }
+    #chat-petition { flex: 1; }
+    #chat-form input::placeholder { color: rgba(255,255,255,0.4); }
+    #chat-form input:focus {
+      border-color: rgba(168,85,247,0.7);
+      background: rgba(255,255,255,0.11);
+    }
+    #chat-send-btn {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+      padding: 7px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+    }
+    #chat-send-btn:hover:not(:disabled) {
+      background: rgba(255,255,255,0.25);
+      transform: translateY(-1px);
+    }
+    #chat-send-btn:active:not(:disabled) { transform: scale(0.97); }
+    #chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #chat-send-btn .btn-spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    #chat-send-btn.loading .btn-spinner { display: block; }
+    #chat-send-btn.loading .btn-text { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+
+<body>
+  <div id="player-container">
+    <!-- Dual video buffers for seamless transitions -->
+    <video id="vid1" crossorigin="anonymous" autoplay loop muted playsinline class="active"></video>
+    <video id="vid2" crossorigin="anonymous" autoplay loop muted playsinline></video>
+
+
+    <div id="prayer-overlay">
+      <div id="overlay-instruction">✍️ Escribe en el chat tu petición de oración</div>
+    </div>
+
+    <div id="priority-gift-overlay">
+      <img id="pg-img" src="" alt="Regalo">
+      <div class="priority-gift-action">Petición Prioritaria</div>
+      <div class="priority-gift-name" id="pg-name"></div>
+    </div>
+
+    <div id="start-overlay">
+      <button id="start-btn">▶️ Iniciar Transmisión</button>
+    </div>
+  </div>
+
+  <!-- ── Chat Interactivo ────────────────────────────────── -->
+  <div id="chat-panel">
+    <div id="chat-header">
+      <div class="chat-avatar">🦜</div>
+      <div class="chat-title-block">
+        <div class="chat-title" style="font-size: 0.95rem; line-height: 1.1;">GuacaGuía: conoce, comprende y vive el Manual de Convivencia</div>
+        <div class="chat-subtitle" style="margin-top: 4px;">Envía tu pregunta de convivencia</div>
+      </div>
+      <div class="chat-live-badge">EN VIVO</div>
+    </div>
+    <div id="chat-messages" class="has-messages">
+      <div class="chat-msg"><span class="msg-system">👋 ¡Hola! Escribe tu nombre y tu duda sobre el Manual de Convivencia.</span></div>
+    </div>
+    <div id="chat-form">
+      <div class="chat-inputs-row">
+        <input id="chat-name" type="text" maxlength="30" placeholder="Nombre" autocomplete="off">
+        <input id="chat-petition" type="text" maxlength="200" placeholder="Escribe tu duda aquí..." autocomplete="off">
+      </div>
+      <!-- Widget invisible de Cloudflare Turnstile -->
+      <div id="turnstile-widget"></div>
+      <button id="chat-send-btn" onclick="sendPrayer()">
+        <div class="btn-spinner"></div>
+        <span class="btn-text">Enviar Pregunta</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Buffers eliminados de aquí (se movieron a player-container) -->
+  <!-- Audios del sistema de sonido contextual -->
+  <audio id="snd-fondo"   loop preload="auto" src="/sonidos/sonido_fondo.mp3"   style="display:none"></audio>
+  <audio id="snd-default" loop preload="auto" src="/sonidos/guacayamas_default2.mp3" style="display:none"></audio>
+  <audio id="snd-vuela"   preload="auto" src="/sonidos/guacamaya_vuela2.mp3"   style="display:none"></audio>
+  <audio id="snd-vuela4"  preload="auto" src="/sonidos/guacamaya_vuela.mp3"     style="display:none"></audio>
+  <audio id="tts-audio" preload="none"></audio>
+  <audio id="snd-nueva-pregunta" preload="auto" src="/sonidos/nueva_pregunta.wav" style="display:none"></audio>
+
+  <script>
+    // WebGL setup removed, we render videos directly with CSS
+
+    const vids = [
+      document.getElementById('vid1'),
+      document.getElementById('vid2')
+    ];
+    let activeIdx   = 0;
+    let swapQueue   = [];   // queue de {filename, speed}
+    const VIDEO_CACHE_V = '20260825'; // force browser to reload MP4 files after audio cleanup
+
+    function activeVid() { return vids[activeIdx]; }
+    function nextVid()   { return vids[1 - activeIdx]; }
+
+    function updateVisibility() {
+      vids.forEach((v, i) => {
+        if (i === activeIdx) {
+          v.classList.add('active');
+        } else {
+          v.classList.remove('active');
+        }
+      });
+    }
+    // No window resize event needed for standard videos
+
+    let isSwapping = false;
+    let swapToken = 0; // generación: invalida swaps obsoletos (evita congelamientos)
+    const videoPlayStart = new Map(); // Para rastrear cuándo inició cada video
+
+    // ── Corte invisible por pose base ───────────────────────────────────────
+    // Los videos empiezan y terminan en la MISMA pose, así que el cambio se
+    // programa para el instante en que el video saliente llega al inicio/fin de
+    // su loop (~8s): ahí está en su pose base, igual que el entrante (que se
+    // mantiene PAUSADO en su primer fotograma). El corte en ese momento es
+    // invisible. NO se usa fundido: mezclar dos siluetas casi iguales deja una
+    // sombra/fantasma visible.
+
+    // ¿El video activo está en su pose base (primeros/últimos 200ms del loop)?
+    function atBoundaryPose(vid) {
+      const d = vid.duration;
+      if (!isFinite(d) || d <= 0) return true; // duración desconocida → cortar ya
+      if (!vid.loop) return (vid.ended || (vid.paused && vid.currentTime >= d - 0.2));
+      const t = vid.currentTime || 0;
+      const phase = t % d;
+      // Corte válido solo en los primeros o últimos 200ms del ciclo
+      return phase < 0.2 || phase > d - 0.2;
+    }
+
+    // Espera (polling ~25fps) a que el saliente llegue a su pose base, con un
+    // tope maxWaitMs; si se pasa el tope, se corta igual (cambio limpio).
+    // isCancelled: si un switch más nuevo invalidó esta espera, se aborta en
+    // silencio (nada de tocar el estado del pipeline).
+    function waitForBoundary(vidEl, maxWaitMs, onBoundary, onTimeout, isStale) {
+      if (maxWaitMs <= 0 || vidEl.paused || vidEl.ended) { 
+        onTimeout(); 
+        return; 
+      }
+      const start = performance.now();
+      const check = () => {
+        if (isStale && isStale()) return; // swap obsoleto → salir ya
+        if (atBoundaryPose(vidEl)) return onBoundary();
+        if (performance.now() - start > maxWaitMs) return onTimeout();
+        setTimeout(check, 40);
+      };
+      check();
+    }
+
+    // renderFrame deleted
+
+    function processSwapQueue() {
+      if (isSwapping || swapQueue.length === 0) return;
+      const { filename, speed, onApplied, unmuted, maxWaitMs } = swapQueue.shift(); // FIFO
+      isSwapping = true;
+      const token = swapToken;
+      // Tope por llamada, con tope ABSOLUTO de seguridad: por mucho que se pida
+      // esperar la pose base (Infinity), nunca se espera más de 12s.
+      const maxWait = Math.min(
+        (typeof maxWaitMs === 'number' && maxWaitMs >= 0) ? maxWaitMs : 2000,
+        12000
+      );
+
+      const next = nextVid();
+      // El video de cierre (Declaración de victoria) lleva su PROPIO audio
+      // ("En el nombre de Jesús, amén y amén") → solo ese va sin mute.
+      next.muted  = !unmuted;
+      // Las animaciones de entrada ('viene') y transición de salida ('habla2') NO deben loopear, de lo contrario
+      // al terminar saltan a su fotograma 0 (causando un parpadeo visual antes del swap).
+      next.loop   = (!unmuted && !filename.includes('viene') && !filename.includes('habla2')); 
+      next.src    = '/' + encodeURIComponent(filename) + '.mp4?v=' + VIDEO_CACHE_V;
+
+      let swapTimeout = null;
+      function cleanup() {
+        if (swapTimeout) { clearTimeout(swapTimeout); swapTimeout = null; }
+        next.removeEventListener('canplaythrough', onReady);
+        next.removeEventListener('canplay', onReady);
+        next.removeEventListener('error', onFail);
+      }
+      const isStale = () => token !== swapToken;
+
+      // Notifica (una sola vez) cuando la animación quedó aplicada en pantalla
+      // (o si falló/timó out, para no perder el audio del evento asociado).
+      function fireApplied() {
+        if (onApplied) { const cb = onApplied; try { cb(); } catch (_) {} }
+      }
+
+      // El entrante se deja PAUSADO en su fotograma 0 (pose base) para que el
+      // corte continúe exactamente la pose del saliente, sin ningún salto.
+      function holdAtStart() {
+        try {
+          next.pause();
+          if (next.currentTime !== 0) next.currentTime = 0;
+        } catch (_) {}
+      }
+
+      function doSwap() {
+        if (isStale()) { isSwapping = false; processSwapQueue(); return; }
+        next.playbackRate = speed;
+        videoPlayStart.set(next, performance.now());
+        currentAnimName = filename;
+        updateContextAudio(filename); // activa/desactiva audio contextual según video
+        next.play().catch(()=>{});
+        const prev = activeVid();
+        activeIdx = 1 - activeIdx;
+        updateVisibility();
+        fireApplied(); // el video ya está en pantalla → suena el audio sincronizado
+        // El saliente solo se pausa (su buffer puede reutilizarse de inmediato:
+        // al cargarle un src nuevo se sobrescribe solo).
+        try { prev.pause(); } catch (_) {}
+        isSwapping = false;
+        processSwapQueue(); // procesar el siguiente de la cola
+      }
+
+      // Carga lista → dejar el entrante en pose base y esperar la del saliente.
+      function onReady() {
+        cleanup();
+        if (isStale()) return;
+        holdAtStart();
+        waitForBoundary(activeVid(), maxWait, doSwap, doSwap, isStale);
+      }
+      function onFail() {
+        cleanup();
+        if (isStale()) return;
+        console.warn('[player] video no disponible, omitiendo:', filename);
+        fireApplied();
+        isSwapping = false;
+        processSwapQueue();
+      }
+
+      // Seguridad: si el video tarda demasiado (carga lenta, red, caché, o el
+      // navegador no dispara canplay), se omite para que el pipeline NUNCA
+      // quede congelado y el personaje siga respondiendo a las animaciones.
+      swapTimeout = setTimeout(() => {
+        cleanup();
+        if (isStale()) return; // ya hay un swap más nuevo → no tocar el estado
+        console.warn('[player] timeout cargando video, omitiendo:', filename);
+        fireApplied();
+        isSwapping = false;
+        processSwapQueue();
+      }, 6000);
+
+      if (next.readyState >= 3) {
+        cleanup();
+        holdAtStart();
+        waitForBoundary(activeVid(), maxWait, doSwap, doSwap, isStale);
+      } else {
+        next.addEventListener('canplay', onReady);
+        next.addEventListener('canplaythrough', onReady);
+        next.addEventListener('error', onFail);
+        next.load();
+        // NO se reproduce aún: queda en el fotograma 0 para el corte invisible.
+      }
+    }
+
+    // maxWaitMs: tope para esperar la pose base del saliente antes de cortar.
+    //   Infinity → espera siempre (corte 100% invisible; idle/música).
+    //   ~1200ms → compromiso entre invisibilidad y respuesta (saludos/oración).
+    function switchAnimation(filename, speed = 1.0, onApplied = null, unmuted = false, maxWaitMs = 2000) {
+      // Una nueva animación tiene prioridad absoluta: invalida cualquier swap en
+      // curso y descarta pendientes, así la oración/música responde de inmediato.
+      swapToken++;
+      swapQueue = [];
+      isSwapping = false;
+      swapQueue.push({ filename, speed, onApplied, unmuted, maxWaitMs });
+      processSwapQueue();
+    }
+
+    function queueAnimation(filename, speed = 1.0, onApplied = null, unmuted = false, maxWaitMs = 2000) {
+      swapQueue.push({ filename, speed, onApplied, unmuted, maxWaitMs });
+      processSwapQueue();
+    }
+
+    // Duración real de los videos precargados (para el cierre con audio propio).
+    const preloadedDurations = {};
+    let idlePreloaded = false; // las animaciones de reposo se precalientan 1 vez
+    let currentAnimName = 'guacamayas_default1'; // animación actualmente en pantalla
+
+    // Calienta el caché del navegador con un video futuro (p. ej. la victoria)
+    // para que el swap al momento de usarlo sea prácticamente instantáneo, y
+    // guarda su duración real para no cortar su audio.
+    function preloadVideo(filename) {
+      try {
+        const el = document.createElement('video');
+        el.preload = 'auto';
+        el.muted   = true;
+        el.src     = '/' + encodeURIComponent(filename) + '.mp4';
+        el.addEventListener('loadedmetadata', () => {
+          if (el.duration && isFinite(el.duration)) preloadedDurations[filename] = el.duration * 1000;
+        });
+        el.load();
+      } catch (_) {}
+    }
+    // Precargar duraciones de videos clave para la coreografía matemática
+    preloadVideo('guacamaya_habla1');
+    preloadVideo('guacamaya_habla2');
+    preloadVideo('guacamaya_va');
+
+    const startOverlay = document.getElementById('start-overlay');
+    const startBtn     = document.getElementById('start-btn');
+    // ── Sistema de sonido contextual (reemplaza alabanza/adoracion) ──────────
+    const sndFondo   = document.getElementById('snd-fondo');
+    const sndDefault = document.getElementById('snd-default');
+    const sndVuela   = document.getElementById('snd-vuela');
+    sndFondo.volume   = 0.35;
+    sndDefault.volume = 0.45;
+    sndVuela.volume   = 0.55;
+    const sndVuela4   = document.getElementById('snd-vuela4');
+    sndVuela4.volume  = 0.55;
+
+    // Inicia el sonido de fondo siempre en loop
+    function startFondo() {
+      sndFondo.play().catch(() => {
+        document.addEventListener('click', () => sndFondo.play(), { once: true });
+      });
+    }
+
+    // Activa/desactiva los audios contextuales según el video que está sonando
+    let lastContextAudio = null;
+    function updateContextAudio(animName) {
+      const isDefault4  = animName === 'guacamayas_default4';
+      const isDefault2  = animName === 'guacamayas_default2';
+      const isVuela     = animName === 'guacamaya_va' || animName === 'guacamaya_viene';
+
+      if (isDefault4) {
+        // guacamayas_default4 → guacamaya_vuela.mp3 (1 vez)
+        if (lastContextAudio !== sndVuela4) {
+          if (lastContextAudio) lastContextAudio.pause();
+          sndVuela4.currentTime = 0;
+          sndVuela4.play().catch(() => {});
+          lastContextAudio = sndVuela4;
+        }
+      } else if (isDefault2) {
+        // guacamayas_default2 → guacayamas_default2.mp3 (loop)
+        if (lastContextAudio !== sndDefault) {
+          if (lastContextAudio) lastContextAudio.pause();
+          sndDefault.currentTime = 0;
+          sndDefault.play().catch(() => {});
+          lastContextAudio = sndDefault;
+        }
+      } else if (isVuela) {
+        // guacamaya_va / guacamaya_viene → guacamaya_vuela2.mp3 (1 vez)
+        if (lastContextAudio !== sndVuela) {
+          if (lastContextAudio) lastContextAudio.pause();
+          lastContextAudio = sndVuela;
+          sndVuela.currentTime = 0;
+          if (animName === 'guacamaya_va') {
+            setTimeout(() => {
+              if (lastContextAudio === sndVuela) sndVuela.play().catch(() => {});
+            }, 600); // Retardo para sincronizar el sonido con el despegue visual
+          } else {
+            sndVuela.play().catch(() => {});
+          }
+        }
+      } else {
+        if (lastContextAudio) {
+          lastContextAudio.pause();
+          lastContextAudio = null;
+        }
+      }
+    }
+    const ttsAudioEl   = document.getElementById('tts-audio');
+
+    // ── Refuerzo de volumen de la voz de las oraciones ───────────────────────
+    // Un <audio> no pasa de volumen 1.0; para que la oración se escuche MÁS
+    // fuerte que el resto se enruta por Web Audio con ganancia > 1. Solo se
+    // aplica si el contexto de audio quedó activo (gesto del usuario o OBS);
+    // si no, el audio sigue sonando directo y nunca se pierde.
+    const PRAYER_AUDIO_GAIN = 3.0; // ≈ +9.5 dB — voz bien audible sobre la música
+    let ttsBoostApplied = false; // se enrutó por Web Audio (solo 1 vez)
+    let ttsCtx = null;
+
+    const MUSIC_AUDIO_GAIN = 2.5; // ≈ +8 dB para que la música suene más fuerte
+    let musicBoostApplied = false;
+
+    function applyMusicBoostOnce(retriesLeft = 8) {
+      if (musicBoostApplied) return;
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        
+        if (!ttsCtx) ttsCtx = new Ctx();
+        if (ttsCtx.state !== 'running') {
+          ttsCtx.resume().catch(() => {});
+          if (retriesLeft > 0) setTimeout(() => applyMusicBoostOnce(retriesLeft - 1), 250);
+          return;
+        }
+        
+        const g = ttsCtx.createGain();
+        g.gain.value = MUSIC_AUDIO_GAIN;
+        musicBoostApplied = true;
+        console.log(`[player] música de fondo reforzada x${MUSIC_AUDIO_GAIN}`);
+      } catch (_) { /* el audio sigue sonando directo */ }
+    }
+
+    if (window.location.search.includes('obs')) {
+      switchAnimation('guacamayas_default1');
+    } else {
+      startOverlay.style.display = 'flex';
+    }
+
+    startBtn.addEventListener('click', () => {
+      startOverlay.style.display = 'none';
+      startFondo();
+      ttsAudioEl.play().catch(()=>{});  ttsAudioEl.pause();
+      switchAnimation('guacamayas_default1');
+      if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(()=>{});
+
+      // Encender emisora automáticamente
+      if (typeof toggleRadio === 'function') toggleRadio();
+
+      // Pedir pantalla completa al tocar el botón (funciona en HTTP local también)
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (req) req.call(el).catch(()=>{});
+    });
+
+    class PetitionerManager {
+      constructor() {
+        this.stage = document.getElementById('petitioners-stage');
+        const slotIds = ['R1_1','L1_1','R2_1','L2_1','R2_2','L2_2','R3_1','L3_1','R3_2','L3_2','R3_3','L3_3'];
+        this.slots = slotIds.map(id => ({ id, element: null, username: null }));
+      }
+      addPetitioner(username, avatarUrl) {
+        if (this.slots.some(s => s.username === username)) return;
+        const slot = this.slots.find(s => s.element === null);
+        if (!slot) return;
+        const el = document.createElement('div');
+        el.className = 'petitioner'; el.dataset.slot = slot.id;
+        const avatarDiv = document.createElement('div'); avatarDiv.className = 'avatar';
+        if (avatarUrl) { avatarDiv.style.backgroundImage = `url('${avatarUrl}')`; }
+        else { const iDiv = document.createElement('div'); iDiv.className='initial'; iDiv.innerText=(username||'?').charAt(0).toUpperCase(); avatarDiv.appendChild(iDiv); }
+        const img = document.createElement('img'); img.className = 'body';
+        img.src = (/a$/i.test((username||'').trim().split(/[0-9_]/)[0])) ? '/peticionaria1.png' : '/peticionario1.png';
+        el.appendChild(avatarDiv); el.appendChild(img); this.stage.appendChild(el);
+        slot.element = el; slot.username = username;
+      }
+      removePetitioner(username) {
+        const slot = this.slots.find(s => s.username === username);
+        if (slot && slot.element) {
+          slot.element.classList.add('leaving');
+          setTimeout(() => { slot.element?.parentNode?.removeChild(slot.element); slot.element=null; slot.username=null; }, 600);
+        }
+      }
+    }
+    const petitionerManager = new PetitionerManager();
+
+    let ws              = null;
+    let isPraying       = false;
+    let prayerSessionId = 0;
+    let currentMusicType = null;
+    let musicLoopTimer   = null;
+    const IDLE_ANIMS = ['guacamayas_default1','guacamayas_default2','guacamayas_default3','guacamayas_default4'];
+
+    const MUSIC_ANIMATIONS = {
+      idle: IDLE_ANIMS
+    };
+
+    // startMusicLoop / stopMusicLoop: mantenemos la firma para compatibilidad
+    // con mensajes WS, pero ahora no controlan música externa (esa fue reemplazada)
+    function startMusicLoop(type) {
+      currentMusicType = type;
+      if (musicLoopTimer) { clearTimeout(musicLoopTimer); musicLoopTimer = null; }
+      const pool = IDLE_ANIMS;
+      let lastAnim = '';
+      function nextMusicAnim() {
+        if (!currentMusicType) return;
+        if (isSwapping) { musicLoopTimer = setTimeout(nextMusicAnim, 1000); return; }
+        let anim;
+        do { anim = pool[Math.floor(Math.random() * pool.length)]; }
+        while (pool.length > 1 && anim === lastAnim);
+        lastAnim = anim;
+        switchAnimation(anim, 1, null, false, Infinity);
+        const nextTime = 4000 + Math.random() * 4000;
+        musicLoopTimer = setTimeout(nextMusicAnim, nextTime);
+      }
+      nextMusicAnim();
+    }
+
+    function stopMusicLoop() {
+      currentMusicType = null;
+      if (musicLoopTimer) { clearTimeout(musicLoopTimer); musicLoopTimer = null; }
+    }
+
+    const activePopups = [];
+    function showPopup(text) {
+      const c = document.getElementById('player-container');
+      const p = document.createElement('div');
+      p.className = 'greeting-popup'; p.textContent = text;
+      p.style.setProperty('--rot', `${(Math.random()-0.5)*24}deg`);
+
+      // Busca una posición libre para que los textos NO se sobrepongan entre sí
+      let x = Math.random() * 50 + 10;
+      let y = Math.random() * 45 + 10;
+      for (let i = 0; i < 15; i++) {
+        x = Math.random() * 50 + 10;
+        y = Math.random() * 45 + 10;
+        if (x > 35 && x < 55) x = Math.random() > 0.5 ? Math.random() * 15 + 10 : Math.random() * 10 + 55; // evitar el rostro
+        if (!activePopups.some(pos => Math.abs(pos.x - x) < 12 && Math.abs(pos.y - y) < 8)) break;
+      }
+      activePopups.push({ x, y });
+
+      p.style.left = x + '%';
+      p.style.top  = y + '%';
+      c.appendChild(p);
+      setTimeout(() => p.classList.add('show'), 10);
+      setTimeout(() => {
+        p.remove();
+        const idx = activePopups.findIndex(pos => pos.x === x && pos.y === y);
+        if (idx > -1) activePopups.splice(idx, 1);
+      }, 5000);
+    }
+
+    // ── Audio de saludos: un solo audio a la vez (evita solapamiento) ────────
+    let currentGreetingAudio = null;
+    function playGreetingAudio(url) {
+      const a = new Audio(url);
+      currentGreetingAudio = a;
+      a.onended = () => { if (currentGreetingAudio === a) currentGreetingAudio = null; };
+      a.play().catch(()=>{});
+    }
+    function stopGreetingAudio() {
+      if (currentGreetingAudio) {
+        try { currentGreetingAudio.pause(); currentGreetingAudio.onended = null; currentGreetingAudio = null; } catch (_) {}
+      }
+    }
+
+    function connectWS() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'localhost:3002';
+      ws = new WebSocket(`${protocol}//${host}`);
+
+      // Al (re)conectar, re-sincroniza el estado de música: si el admin inició
+      // alabanza/adoración mientras el reproductor cargaba o estaba reconectando,
+      // el mensaje music_start pudo perderse y aquí se recupera.
+      ws.addEventListener('open', () => {
+        fetch('/api/prayer-status').then(r => r.json()).then(s => {
+          if (!s) return;
+          if (s.musicMode) {
+            startMusicLoop(s.musicType || 'idle');
+          } else {
+            stopMusicLoop();
+          }
+        }).catch(() => {});
+      });
+
+      ws.addEventListener('message', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+
+          if (data.type === 'prayer_animation' && data.animation) {
+            // Idle del motor: espera la pose base → corte invisible (Infinity).
+            // Botones del admin (fast:true): tope corto para responder al instante.
+            switchAnimation(data.animation, data.speed || 1.0, null, false, data.fast ? 600 : Infinity);
+          }
+
+          if (data.type === 'popup_message') {
+            showPopup(data.text);
+            resetChatFadeTimer();
+          }
+
+          if (data.type === 'prayer_queued') {
+            document.getElementById('snd-nueva-pregunta').play().catch(()=>{});
+          }
+
+          if (data.type === 'prayer_queued') petitionerManager.addPetitioner(data.username, data.avatar);
+          if (data.type === 'execute_prayer' && data.url) {
+            prayerSessionId++;
+            isPraying = true;
+            if (musicLoopTimer) { clearTimeout(musicLoopTimer); musicLoopTimer = null; }
+            // Bajar TODOS los audios locales a nivel sutil mientras suena la oración TTS
+            window.duckLofi();
+            sndFondo.volume = 0.15;
+            if (lastContextAudio) lastContextAudio.volume = 0.15;
+
+            const sid = prayerSessionId;
+
+            swapQueue  = [];
+            isSwapping = false;
+
+            let habla2Shown  = false;
+            let hasClosed    = false;
+            let choreoTimers = [];
+
+            function cancelChoreo() {
+              choreoTimers.forEach(t => clearTimeout(t));
+              choreoTimers = [];
+            }
+
+            function doFinish() {
+              if (sid !== prayerSessionId || hasClosed) return;
+              hasClosed = true;
+              cancelChoreo();
+              ttsAudioEl.onended = null;
+              ttsAudioEl.onerror = null;
+              window.unduckLofi(); // restaurar radio después de la oración
+              const cv = activeVid();
+              if (cv && !cv.paused) cv.playbackRate = 1.0;
+
+              let safeIdle = IDLE_ANIMS[Math.floor(Math.random() * IDLE_ANIMS.length)];
+              while (safeIdle === window.lastIdleAnim && IDLE_ANIMS.length > 1) {
+                safeIdle = IDLE_ANIMS[Math.floor(Math.random() * IDLE_ANIMS.length)];
+              }
+              window.lastIdleAnim = safeIdle;
+
+              // ─── Control DIRECTO del video element ───────────────────────────
+              // Bypasea el sistema de cola (que tiene race conditions) para garantizar
+              // que guacamaya_va SIEMPRE aparece después de habla2.
+              function forceShowVa() {
+                swapToken++;
+                swapQueue = [];
+                isSwapping = false;
+                currentAnimName = 'guacamaya_va';
+                updateContextAudio('guacamaya_va');
+
+                // Esperamos 350ms antes de cambiar el src del video inactivo.
+                // Esto garantiza que cualquier transición CSS de opacidad (0.3s)
+                // haya terminado, evitando que el video se vuelva transparente
+                // en pleno crossfade y deje ver el fondo del OBS (las 3 guacamayas).
+                setTimeout(() => {
+                  if (sid !== prayerSessionId) return;
+                  const vaEl = nextVid();
+                  vaEl.muted        = true;
+                  vaEl.loop         = false; // una sola reproducción
+                  vaEl.playbackRate = 1.0;
+                  vaEl.src          = '/guacamaya_va.mp4?v=' + VIDEO_CACHE_V;
+
+                  let vaHandled  = false; // evita que onVaReady se llame dos veces
+                  let idleDone   = false; // evita que goToIdle se llame dos veces
+
+                  function goToIdle() {
+                    if (idleDone) return;
+                    idleDone = true;
+                    vaEl.onended = null;
+                    vaEl.onerror = null;
+                    if (sid !== prayerSessionId) return;
+                    switchAnimation(safeIdle, 1.0, () => {
+                      if (sid !== prayerSessionId) return;
+                      isPraying = false;
+              // Restaurar volumen de todos los audios al terminar la oración
+              window.unduckLofi();
+              sndFondo.volume = 0.35;
+              if (lastContextAudio) lastContextAudio.volume = sndDefault === lastContextAudio ? 0.45 : 0.55;
+                      try { ws.send(JSON.stringify({ type: 'prayer_ended', username: data.username })); } catch(_) {}
+                      if (currentMusicType && currentMusicType !== 'idle') startMusicLoop(currentMusicType, null);
+                      else startMusicLoop('idle', null);
+                    }, false, Infinity);
+                  }
+
+                  function onVaReady() {
+                    if (vaHandled) return; // ← un solo disparo
+                    vaHandled = true;
+                    vaEl.removeEventListener('canplay', onVaReady);
+                    vaEl.removeEventListener('canplaythrough', onVaReady);
+                    vaEl.removeEventListener('error', onVaFail);
+                    vaEl.currentTime = 0;
+                    vaEl.onended = goToIdle;
+                    vaEl.onerror = goToIdle;
+                    vaEl.play().catch(() => goToIdle());
+                    // va entra en pantalla
+                    activeIdx = 1 - activeIdx;
+                    updateVisibility();
+                    const prev = vids[1 - activeIdx];
+                    try { prev.pause(); } catch(_) {}
+                    // Seguridad: si onended no llega en 12s, forzar idle
+                    setTimeout(() => goToIdle(), 12000);
+                  }
+
+                  function onVaFail() {
+                    if (vaHandled) return;
+                    vaHandled = true;
+                    vaEl.removeEventListener('canplay', onVaReady);
+                    vaEl.removeEventListener('canplaythrough', onVaReady);
+                    vaEl.removeEventListener('error', onVaFail);
+                    console.warn('[player] guacamaya_va.mp4 no cargó, saltando a idle');
+                    goToIdle();
+                  }
+
+                  vaEl.addEventListener('canplay', onVaReady);
+                  vaEl.addEventListener('canplaythrough', onVaReady);
+                  vaEl.addEventListener('error', onVaFail);
+                  vaEl.load();
+                  // Seguridad: si canplay no llega en 4s, forzar intento
+                  setTimeout(() => {
+                    if (vaEl.readyState >= 2) onVaReady();
+                    else onVaFail();
+                  }, 4000);
+                }, 350);
+              }
+
+              if (habla2Shown) {
+                forceShowVa();
+              } else {
+                // habla2 no estaba aún: mostrarla y dejar que termine antes de va
+                habla2Shown = true;
+                swapToken++; swapQueue = []; isSwapping = false;
+                queueAnimation('guacamaya_habla2', 1.0, () => {
+                  if (sid !== prayerSessionId) return;
+                  const dur = preloadedDurations['guacamaya_habla2'] || 7000;
+                  setTimeout(() => forceShowVa(), dur);
+                }, false, 0);
+              }
+            }
+
+            // ── 1) VIENE — siempre primero (max 8s de espera boundary) ───────
+            switchAnimation('guacamaya_viene', 1.0, null, false, 8000);
+
+            // ── 2) HABLA1 — se encola; audio se precarga en paralelo ─────────
+            ttsAudioEl.onended = null;
+            ttsAudioEl.onerror = null;
+            ttsAudioEl.src     = data.url;
+            ttsAudioEl.load();
+
+            queueAnimation('guacamaya_habla1', 1.0, () => {
+              if (sid !== prayerSessionId) return;
+
+              ttsAudioEl.onended = doFinish;
+              ttsAudioEl.onerror = doFinish;
+
+              function startAudioAndTimers() {
+                if (sid !== prayerSessionId || hasClosed) return;
+
+                const estDurMs  = data.estDurMs || 0;
+                const realDurMs = (ttsAudioEl.duration && isFinite(ttsAudioEl.duration))
+                  ? ttsAudioEl.duration * 1000
+                  : (data.audioDurMs || estDurMs || 10000);
+
+                const HABLA1_MS = preloadedDurations['guacamaya_habla1'] || 8000;
+                const HABLA2_MS = preloadedDurations['guacamaya_habla2'] || 7000;
+
+                const habla2StartMs = Math.max(500, realDurMs - HABLA2_MS);
+                const habla1Loops   = Math.floor(habla2StartMs / HABLA1_MS);
+                const habla1LastMs  = habla2StartMs - (habla1Loops * HABLA1_MS);
+                const habla1Speed   = (habla1LastMs > 300) ? Math.min(3.5, HABLA1_MS / habla1LastMs) : 1.0;
+
+                console.log(`[choreo] dur=${realDurMs}ms | habla2@${habla2StartMs}ms | habla1: ${habla1Loops} loops + ${habla1LastMs}ms @ ${habla1Speed.toFixed(2)}x`);
+
+                // Timer A: acelerar el último loop de habla1
+                if (habla1Loops > 0) {
+                  choreoTimers.push(setTimeout(() => {
+                    if (sid !== prayerSessionId || hasClosed) return;
+                    const v = activeVid();
+                    if (v && !v.paused) v.playbackRate = habla1Speed;
+                  }, habla1Loops * HABLA1_MS));
+                } else {
+                  const v = activeVid();
+                  if (v && !v.paused) v.playbackRate = habla1Speed;
+                }
+
+                // Timer B: cambiar a habla2 exactamente en T - 7s
+                choreoTimers.push(setTimeout(() => {
+                  if (sid !== prayerSessionId || hasClosed) return;
+                  habla2Shown = true;
+                  const v2 = activeVid();
+                  if (v2 && !v2.paused) v2.playbackRate = 1.0;
+                  switchAnimation('guacamaya_habla2', 1.0, null, false, 3000);
+                }, habla2StartMs));
+
+                // Timer C: seguridad si onended no llega
+                choreoTimers.push(setTimeout(doFinish, realDurMs + 3500));
+
+                window.duckLofi(); // bajar radio cuando suena la oración
+                ttsAudioEl.play().catch(() => setTimeout(doFinish, realDurMs || 5000));
+              }
+
+              if (ttsAudioEl.readyState >= 2 && ttsAudioEl.duration && isFinite(ttsAudioEl.duration)) {
+                startAudioAndTimers();
+              } else {
+                ttsAudioEl.oncanplay = () => { ttsAudioEl.oncanplay = null; startAudioAndTimers(); };
+                choreoTimers.push(setTimeout(() => {
+                  if (ttsAudioEl.oncanplay) { ttsAudioEl.oncanplay = null; startAudioAndTimers(); }
+                }, 4000));
+              }
+            }, false, Infinity);
+          }
+
+
+          // prayer_done del servidor: solo se usa como señal de cola (el player ya
+          // maneja guacamaya_va y el retorno al idle internamente desde doFinish).
+          if (data.type === 'prayer_done' && !isPraying) {
+            // Solo ejecutar si por algún motivo el player quedó colgado
+            swapQueue = [];
+            isSwapping = false;
+            let safeIdle = IDLE_ANIMS[Math.floor(Math.random() * IDLE_ANIMS.length)];
+            while (safeIdle === window.lastIdleAnim && IDLE_ANIMS.length > 1) {
+              safeIdle = IDLE_ANIMS[Math.floor(Math.random() * IDLE_ANIMS.length)];
+            }
+            window.lastIdleAnim = safeIdle;
+            switchAnimation(safeIdle, 1, null, false, Infinity);
+          }
+
+          if (data.type === 'puppy_event' && !isPraying) {
+            // Un nuevo evento corta el audio del anterior para que no se sobrepongan
+            stopGreetingAudio();
+            if (data.animation) {
+              if (data.url) {
+                // El audio del saludo suena JUSTO cuando su video está aplicado
+                // en pantalla (bien sincronizado con el gesto). Tope 1200ms para
+                // que el saludo responda con agilidad.
+                switchAnimation(data.animation, 1.0, () => playGreetingAudio(data.url), false, 1200);
+              } else {
+                switchAnimation(data.animation, 1, null, false, 1200);
+              }
+            } else if (data.url) {
+              playGreetingAudio(data.url);
+            }
+          }
+
+          if (data.type === 'chroma_update') {
+            if (data.color)                    chromaRGB = hexToRGB(data.color);
+            if (data.tolerance  !== undefined) tolerance = parseFloat(data.tolerance);
+            if (data.smoothing  !== undefined) smoothing = parseFloat(data.smoothing);
+          }
+
+          if (data.type === 'music_start')  startMusicLoop(data.musicType, data.url);
+          if (data.type === 'music_stop')   stopMusicLoop();
+          if (data.type === 'music_volume') fadeMusic(data.volume);
+          if (data.type === 'overlay_update') applyOverlay(data);
+
+        } catch (err) { console.warn('WS parse error', err); }
+      });
+
+      ws.addEventListener('close', () => setTimeout(connectWS, 3000));
+      ws.addEventListener('error', () => ws.close());
+    }
+    // ── Overlay de instrucciones (texto dinámico en pantalla) ────────────────
+    // Muestra u oculta el texto de instrucción para hacer peticiones, tal como
+    // lo configura el panel de admin (vía /admin/overlay → broadcast).
+    function applyOverlay(cfg) {
+      const overlay = document.getElementById('prayer-overlay');
+      const instrEl = document.getElementById('overlay-instruction');
+      if (!cfg) return;
+      if (!cfg.visible) {
+        overlay.classList.remove('visible');
+      } else {
+        instrEl.textContent = cfg.instruction || '✍️ Escribe en el chat tu petición de oración';
+        overlay.classList.add('visible');
+      }
+      // Chat interactivo web
+      const chatPanel = document.getElementById('chat-panel');
+      if (cfg.chatVisible) {
+        chatPanel.classList.add('visible');
+      } else {
+        chatPanel.classList.remove('visible');
+      }
+    }
+
+    // ── Chat Interactivo: lógica de envío ─────────────────────────
+    const chatMessages = document.getElementById('chat-messages');
+    let chatCooldown = false;
+
+    function addChatMsg(nombre, texto, esnatural) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      if (esnatural) {
+        div.innerHTML = `<span class="msg-name">${sanitize(nombre)}:</span>${sanitize(texto)}`;
+      } else {
+        div.innerHTML = `<span class="msg-system">${texto}</span>`;
+      }
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      // Mantener máximo 30 mensajes
+      while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
+    }
+    function addChatMsgUser(nombre, texto) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML = `<span class="msg-name">${sanitize(nombre)}:</span>${sanitize(texto)}`;
+      chatMessages.appendChild(div);
+      chatMessages.classList.add('has-messages');
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
+    }
+
+    function addChatMsgSystem(texto) {
+      const div = document.createElement('div');
+      div.className = 'chat-msg';
+      div.innerHTML = `<span class="msg-system">${texto}</span>`;
+      chatMessages.appendChild(div);
+      chatMessages.classList.add('has-messages');
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      while (chatMessages.children.length > 30) chatMessages.removeChild(chatMessages.firstChild);
+    }
+
+    function sanitize(str) {
+      return String(str || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── Cloudflare Turnstile (captcha anti-spam) ──────────────────────────────
+    // En red local (192.168.x.x, 10.x.x.x, localhost) Cloudflare rechaza el
+    // dominio con error 110200. Se deshabilita el widget y el servidor valida
+    // igual (bypass de IP local en server.mjs). En producción (dominio público)
+    // el widget se activa normalmente.
+    const _host = window.location.hostname;
+    const _isLocal = _host === 'localhost' || _host === '127.0.0.1' ||
+      /^10\./.test(_host) || /^192\.168\./.test(_host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(_host);
+
+    let turnstileWidgetId = null;
+    let turnstileToken    = null;
+
+    function initTurnstile() {
+      if (_isLocal || !window.turnstile || turnstileWidgetId !== null) return;
+      const siteKey = window.TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
+      turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
+        sitekey: siteKey,
+        size: 'flexible',
+        callback: (token) => { turnstileToken = token; },
+        'expired-callback': () => { turnstileToken = null; }
+      });
+    }
+
+    let chatFadeTimer = null;
+    function resetChatFadeTimer() {
+      const msgs = document.getElementById('chat-messages');
+      msgs.style.display = 'flex';
+      msgs.style.opacity = '1';
+      msgs.classList.add('has-messages');
+      
+      if (chatFadeTimer) clearTimeout(chatFadeTimer);
+      chatFadeTimer = setTimeout(() => {
+        msgs.style.opacity = '0';
+        setTimeout(() => {
+          if (msgs.style.opacity === '0') {
+            msgs.style.display = 'none';
+          }
+        }, 500);
+      }, 5000);
+    }
+
+    // Hide chat messages initially after 5s
+    setTimeout(resetChatFadeTimer, 500);
+
+    // Initial setupsizar cuando el script de Turnstile cargue
+    if (window.turnstile) {
+      initTurnstile();
+    } else {
+      const ts = document.querySelector('script[src*="turnstile"]');
+      if (ts) ts.addEventListener('load', initTurnstile);
+    }
+
+    async function sendPrayer() {
+      if (chatCooldown) return;
+      const nameEl = document.getElementById('chat-name');
+      const petEl  = document.getElementById('chat-petition');
+      const btn    = document.getElementById('chat-send-btn');
+
+      const nombre  = nameEl.value.trim() || 'Visitante';
+      const peticion = petEl.value.trim();
+
+      if (!peticion) {
+        petEl.focus();
+        petEl.style.borderColor = 'rgba(239,68,68,0.7)';
+        setTimeout(() => petEl.style.borderColor = '', 1500);
+        return;
+      }
+
+      // Asegurarse de que Turnstile esté inicializado y ejecutar challenge
+      if (!turnstileWidgetId) initTurnstile();
+      if (window.turnstile && turnstileWidgetId !== null) {
+        window.turnstile.execute(turnstileWidgetId);
+        // Esperar hasta 3s a que llegue el token
+        let waited = 0;
+        while (!turnstileToken && waited < 3000) {
+          await new Promise(r => setTimeout(r, 100));
+          waited += 100;
+        }
+      }
+
+      // UI → cargando
+      btn.classList.add('loading');
+      btn.disabled = true;
+      chatCooldown = true;
+
+      try {
+        const resp = await fetch('/api/prayer-simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: nombre, peticion, turnstileToken: turnstileToken || '' })
+        });
+
+        const json = await resp.json().catch(() => ({}));
+
+        if (resp.ok) {
+          addChatMsgUser(nombre, peticion);
+          addChatMsgSystem(`🦜 Las guacamayas responderán tu duda, ${sanitize(nombre)}. ¡Espera!`);
+          petEl.value = '';
+
+          resetChatFadeTimer();
+
+          turnstileToken = null;
+          if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
+          // Cooldown 60s para alinear con el rate limit del servidor
+          setTimeout(() => {
+            chatCooldown = false;
+            btn.disabled = false;
+            btn.classList.remove('loading');
+          }, 60000);
+          addChatMsgSystem('⏳ Espera 1 minuto antes de enviar otra petición.');
+        } else if (resp.status === 429 || json.error === 'rate_limit') {
+          addChatMsgSystem('⏳ Por favor espera un momento antes de enviar otra petición.');
+          chatCooldown = false; btn.disabled = false; btn.classList.remove('loading');
+        } else if (json.error === 'bad_words') {
+          addChatMsgSystem('⛔ Tu mensaje contiene palabras no permitidas. Por favor escribe con respeto.');
+          chatCooldown = false; btn.disabled = false; btn.classList.remove('loading');
+        } else if (json.error === 'captcha') {
+          addChatMsgSystem('🔒 Verificación de seguridad fallida. Intenta de nuevo en un momento.');
+          chatCooldown = false; btn.disabled = false; btn.classList.remove('loading');
+        } else {
+          throw new Error('Server error');
+        }
+      } catch(e) {
+        addChatMsgSystem('⚠️ Ocurrió un error. Inténtalo de nuevo.');
+        chatCooldown = false;
+        btn.disabled = false;
+        btn.classList.remove('loading');
+      }
+    }
+
+    // Enter en textarea no envía (permite saltos de línea); Shift+Enter tampoco
+    document.getElementById('chat-petition').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrayer(); }
+    });
+    document.getElementById('chat-name').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('chat-petition').focus();
+    });
+
+    // Cargar estado del overlay al abrir el reproductor
+    fetch('/api/overlay').then(r => r.json()).then(applyOverlay).catch(() => {});
+
+    connectWS();
+
+  </script>
+  <!-- Radio Ambiental: audio nativo → volumen controlable al 100% -->
+  <audio id="radio-ambiental"
+    src="https://azurecloud.pvtwebs.com/listen/lilo/radio.mp3"
+    preload="none"
+    style="display:none">
+  </audio>
+  <!-- Widget de radio pequeño, solo visual -->
+  <div id="lofi-container" style="
+      position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+      z-index: 100; border-radius: 12px; overflow: hidden;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      opacity: 0.75; transition: opacity 0.4s;
+      width: min(220px, 72vw); padding: 8px 12px;
+      display: flex; align-items: center; gap: 10px; cursor: pointer;
+    "
+    onclick="toggleRadio()"
+    title="Clic para encender/apagar la radio">
+    <span id="radio-icon" style="font-size:1.3rem;">📻</span>
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:0.68rem; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Lilo Radio</div>
+      <div id="radio-status" style="font-size:0.6rem; color:#94a3b8;">Toca para activar</div>
+    </div>
+    <div id="radio-bars" style="display:flex; align-items:flex-end; gap:2px; height:16px; opacity:0; transition:opacity 0.4s;">
+      <div style="width:3px; background:#10b981; border-radius:2px; animation: bar1 0.8s ease-in-out infinite alternate;"></div>
+      <div style="width:3px; background:#10b981; border-radius:2px; animation: bar2 0.6s ease-in-out infinite alternate;"></div>
+      <div style="width:3px; background:#10b981; border-radius:2px; animation: bar3 1.0s ease-in-out infinite alternate;"></div>
+    </div>
+  </div>
+  <style>
+    @keyframes bar1 { from { height: 4px } to { height: 14px } }
+    @keyframes bar2 { from { height: 8px } to { height: 6px }  }
+    @keyframes bar3 { from { height: 3px } to { height: 12px } }
+  </style>
+  <script>
+    const lofiBox      = document.getElementById('lofi-container');
+    const radioEl      = document.getElementById('radio-ambiental');
+    const radioStatus  = document.getElementById('radio-status');
+    const radioBars    = document.getElementById('radio-bars');
+    const radioIcon    = document.getElementById('radio-icon');
+
+    const RADIO_VOL_NORMAL = 0.40; // volumen normal de la radio
+    const RADIO_VOL_DUCK   = 0.12; // volumen sutil durante TTS
+    let radioPlaying = false;
+    let radioFadeIv  = null;
+
+    function fadeRadioTo(target, durationMs) {
+      if (radioFadeIv) { clearInterval(radioFadeIv); radioFadeIv = null; }
+      const steps = 20;
+      const interval = durationMs / steps;
+      const start = radioEl.volume;
+      const delta = (target - start) / steps;
+      let step = 0;
+      radioFadeIv = setInterval(() => {
+        step++;
+        radioEl.volume = Math.max(0, Math.min(1, start + delta * step));
+        if (step >= steps) { clearInterval(radioFadeIv); radioFadeIv = null; radioEl.volume = target; }
+      }, interval);
+    }
+
+    function toggleRadio() {
+      if (radioPlaying) {
+        radioEl.pause();
+        radioPlaying = false;
+        radioStatus.textContent = 'Toca para activar';
+        radioBars.style.opacity = '0';
+        radioIcon.textContent = '📻';
+      } else {
+        radioEl.volume = RADIO_VOL_NORMAL;
+        radioEl.play().then(() => {
+          radioPlaying = true;
+          radioStatus.textContent = '● EN VIVO';
+          radioBars.style.opacity = '1';
+          radioIcon.textContent = '🎵';
+        }).catch(() => {
+          radioStatus.textContent = 'Error al cargar';
+        });
+      }
+    }
+
+    // Hover
+    lofiBox.addEventListener('mouseenter', () => { if (!window._lofiDucked) lofiBox.style.opacity = '1'; });
+    lofiBox.addEventListener('mouseleave', () => { if (!window._lofiDucked) lofiBox.style.opacity = '0.75'; });
+
+    // Ducking REAL: baja el volumen de la radio al 0% durante TTS y restaura al terminar
+    window._lofiDucked = false;
+    window.duckLofi = function() {
+      window._lofiDucked = true;
+      lofiBox.style.opacity = '0.2';
+      if (radioPlaying) fadeRadioTo(RADIO_VOL_DUCK, 400);
+    };
+    window.unduckLofi = function() {
+      window._lofiDucked = false;
+      lofiBox.style.opacity = '0.75';
+      if (radioPlaying) fadeRadioTo(RADIO_VOL_NORMAL, 800);
+    };
+  </script>
+</body>
+</html>

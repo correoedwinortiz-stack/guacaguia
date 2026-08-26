@@ -124,10 +124,7 @@ public
 venv/
 env/
 
-# Archivos específicos del proyecto de oraciones que NO se deben subir (dinámicos)
-tts_*.wav
-tts_*.mp3
-oracion_*.wav
+# Archivos generados por la app (se recrean al ejecutar)
 uploads/
 regalos_descubiertos.json
 playlists.json

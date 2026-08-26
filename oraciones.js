@@ -1,63 +1,66 @@
 // ============================================================
-//  🙏 Generador de Oraciones con la voz de mamá
-//  LLM: OpenRouter (gratis, sin límite diario)
-//  TTS: Edge TTS gratuito (USE_FREE_TTS=true) | Gradium (voz clonada)
-//       con respaldo automático de Qwen3-TTS (HuggingFace, gratis) y Free.ai
+//  🦜 Generador de Respuestas con las Guacamayas
+//  LLM: OpenRouter (gratis)
+//  TTS: Edge TTS (Voz femenina)
 // ============================================================
 
 require("dotenv").config();
 const fetch = require("node-fetch");
-const FormData = require("form-data");
-const readline = require("readline");
 const fs = require("fs");
 const path = require("path");
-const { Readable } = require("stream");
 
-// ── Validar configuración ────────────────────────────────────
 const OPENROUTER_KEY = process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY1 || process.env.GROQ_API_KEY1;
-const GRADIUM_KEY    = process.env.GRADIUM_API_KEY;
-const GRADIUM_VOICE  = process.env.GRADIUM_VOICE_ID;
-const FREEAI_KEY     = process.env.FREEAI_API_KEY;
-const VOICE_PATH     = process.env.VOICE_SAMPLE_PATH || "./voz_mama.wav";
-const USE_FREE_TTS   = process.env.USE_FREE_TTS; // 'true' | 'false' | 'cascade'
 
 if (!OPENROUTER_KEY || OPENROUTER_KEY.includes("tu_")) {
   console.error("❌  Falta OPENROUTER_API_KEY o GROQ_API_KEY en .env");
   process.exit(1);
 }
 
-// Motor TTS de la voz de mamá (solo se valida cuando NO se usa USE_FREE_TTS=true):
-//  1) Gradium (GRADIUM_API_KEYS/GRADIUM_API_KEY + GRADIUM_VOICE_ID) — primario
-//  2) Free.ai (FREEAI_API_KEY + VOICE_SAMPLE_PATH) — respaldo automático si Gradium falla
-// Si ninguno está configurado avisamos y salimos; la voz gratuita de Edge TTS no necesita llaves.
-if (USE_FREE_TTS !== 'true' && USE_FREE_TTS !== 'cascade') {
-  const gradiumKeys = obtenerGradiumKeys();
-  const tieneGradium = gradiumKeys.length > 0 && GRADIUM_VOICE && !GRADIUM_VOICE.includes("tu_");
-  const tieneFreeAI  = FREEAI_KEY && !FREEAI_KEY.includes("tu_") && fs.existsSync(path.resolve(VOICE_PATH));
-
-  if (!tieneGradium && !tieneFreeAI) {
-    console.error("❌  No hay ningún motor TTS de la voz de mamá configurado.");
-    console.error("    Configura GRADIUM_API_KEYS + GRADIUM_VOICE_ID, o FREEAI_API_KEY + VOICE_SAMPLE_PATH en .env");
-    console.error("    (o usa USE_FREE_TTS=true para la voz gratuita de Edge TTS)");
-    process.exit(1);
-  }
-  if (!tieneGradium) console.warn("⚠️  Gradium no está configurado; se usará Free.ai como motor de la voz de mamá.");
-  if (!tieneFreeAI)  console.warn("⚠️  Free.ai no está configurado; la voz de mamá dependerá solo de Gradium.");
+// ── Llamadas a LLMs ──────────────────────────────────────────
+async function callOpenRouter(apiKey, messages, maxTokens = 600) {
+  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "nvidia/nemotron-3.5-lightning:free",
+      messages,
+      temperature: 0.4,
+      max_tokens: maxTokens,
+    }),
+  });
+  if (!resp.ok) throw new Error(`OpenRouter HTTP ${resp.status}`);
+  const data = await resp.json();
+  return data.choices[0].message.content.trim();
 }
 
-// ── Llamadas a LLMs ──────────────────────────────────────────
 async function callGroq(apiKey, messages, maxTokens = 600) {
   const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "qwen/qwen3.6-27b", // Modelo activo soportado por Groq
       messages,
-      temperature: 0.3,
+      temperature: 0.4,
       max_tokens: maxTokens,
     }),
   });
   if (!resp.ok) throw new Error(`Groq HTTP ${resp.status}`);
+  const data = await resp.json();
+  return data.choices[0].message.content.trim();
+}
+
+async function callOrcaRouter(apiKey, messages, maxTokens = 600) {
+  const resp = await fetch("https://api.orcarouter.ai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "orcarouter/free",
+      messages,
+      temperature: 0.4,
+      max_tokens: maxTokens,
+    }),
+  });
+  if (!resp.ok) throw new Error(`OrcaRouter HTTP ${resp.status}`);
   const data = await resp.json();
   return data.choices[0].message.content.trim();
 }
@@ -67,9 +70,9 @@ async function callMistral(apiKey, messages, maxTokens = 600) {
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "mistral-large-latest",
+      model: "open-mistral-7b",
       messages,
-      temperature: 0.3,
+      temperature: 0.4,
       max_tokens: maxTokens,
     }),
   });
@@ -78,56 +81,78 @@ async function callMistral(apiKey, messages, maxTokens = 600) {
   return data.choices[0].message.content.trim();
 }
 
-async function callOpenRouter(apiKey, messages, maxTokens = 600) {
-  const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "meta-llama/llama-3.3-70b-instruct:free",
-      messages,
-      temperature: 0.3,
-      max_tokens: maxTokens,
-    }),
-  });
-  if (!resp.ok) throw new Error(`OpenRouter HTTP ${resp.status}`);
-  const data = await resp.json();
-  return data.choices[0].message.content.trim();
-}
-
-// ── Generar oración con Fallback ──────────────────────────
 async function generarOracion(motivo) {
+  const { buscarContexto } = require('./buscarContexto');
+  const { contexto, chunksUsados, keywordsDetectadas } = buscarContexto(motivo);
+  
+  console.log(`\n[RAG] Keywords: [${keywordsDetectadas.join(', ')}] | Chunks: ${chunksUsados.map(c => c.seccion).join(' / ')}`);
+  
+  let contextText = contexto || "Manual de Convivencia: Principios de respeto, disciplina, amor al prójimo y responsabilidad.";
+
   const messages = [
     {
       role: "system",
-      content: `Eres una madre cristiana colombiana que ora con profunda fe, amor y ternura.
+      content: `Eres un grupo de 3 sabias y amigables guacamayas que responden como una sola voz.
 Instrucciones estrictas:
-- Responde ÚNICAMENTE en español de Colombia, con ortografía impecable. Prohibido usar palabras en otros idiomas.
-- Empieza SIEMPRE con "Padre celestial" o "Señor Jesús"
-- Tono cálido, como una madre orando por sus seres queridos
-- Menciona nombres o situaciones específicas del motivo
-- Incluye referencias bíblicas de forma natural y fluida
-- Termina la oración con una petición o bendición final cálida y natural. PROHIBIDO usar la frase "En el nombre de Jesús, amén y amén" ni "Amén" al final (esa frase la pronuncia el video de cierre de la transmisión).
-- Longitud: MÍNIMO 80, MÁXIMO 95 PALABRAS. Es CRÍTICO que la oración sea lo suficientemente larga y detallada.
-- SOLO texto plano: sin asteriscos, guiones, números ni símbolos`
+- Responden a las preguntas o peticiones basándose estrictamente en las reglas, artículos y sanciones de los fragmentos proporcionados del Manual de Convivencia.
+- Tono amigable, sabio y dispuesto a dar buenos consejos a los estudiantes.
+- NO eres una persona orando, eres un grupo de aves guacamayas dando consejos escolares. NO uses lenguaje religioso, rezos ni digas amén.
+- FRAGMENTOS RELEVANTES DEL MANUAL DE CONVIVENCIA: 
+${contextText}
+- Obligatorio: SIEMPRE INICIA tu respuesta con la frase "¡Rroa!" como sonido de guacamaya.
+- Termina siempre con un buen consejo de convivencia.
+- Longitud: MÍNIMO 40, MÁXIMO 80 PALABRAS.
+- FORMATO OBLIGATORIO: SOLO texto plano para ser leído en voz alta por TTS.
+  NUNCA uses: asteriscos (*), negrita (**), hashes (#), guiones de lista, ni ningun simbolo de formato Markdown.
+  Ejemplo MAL: El **PI** es un *proyecto*.
+  Ejemplo BIEN: El PI es un proyecto.`
     },
-    { role: "user", content: `Crea una oración para: ${motivo}` }
+    { role: "user", content: `Responde o da un consejo para: ${motivo}` }
   ];
 
-  const k1   = process.env.GROQ_API_KEY1 || process.env.GROQ_API_KEY; // Support old and new keys
-  const k2   = process.env.GROQ_API_KEY2;
-  const k3   = process.env.GROQ_API_KEY3;
-  const kmis = process.env.MISTRAL_API_KEY;
+  const korca = process.env.ORCAROUTER_API_KEY;
   const kor1 = process.env.OPENROUTER_API_KEY1 || process.env.OPENROUTER_API_KEY;
   const kor2 = process.env.OPENROUTER_API_KEY2;
+  const kgroq1 = process.env.GROQ_API_KEY1 || process.env.GROQ_API_KEY4;
+  const kgroq2 = process.env.GROQ_API_KEY2;
+  const kmistral = process.env.MISTRAL_API_KEY;
 
-  if (k1)   { try { return await callGroq(k1,       messages); } catch(e) { console.warn('⚠️ Groq1 falló:', e.message); } }
-  if (k2)   { try { return await callGroq(k2,       messages); } catch(e) { console.warn('⚠️ Groq2 falló:', e.message); } }
-  if (k3)   { try { return await callGroq(k3,       messages); } catch(e) { console.warn('⚠️ Groq3 falló:', e.message); } }
-  if (kmis) { try { return await callMistral(kmis,  messages); } catch(e) { console.warn('⚠️ Mistral falló:', e.message); } }
-  if (kor1) { try { return await callOpenRouter(kor1, messages); } catch(e) { console.warn('⚠️ OpenRouter1 falló:', e.message); } }
-  if (kor2) { try { return await callOpenRouter(kor2, messages); } catch(e) { console.warn('⚠️ OpenRouter2 falló:', e.message); } }
+  // Función auxiliar para limpiar la respuesta del LLM para TTS
+  const cleanAndValidate = (res) => {
+    if (!res) throw new Error("Texto vacío");
+    
+    // Eliminar bloques completos <think>...</think>
+    let cleaned = res.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    
+    // Si el modelo se cortó por max_tokens antes de cerrar el </think>,
+    // eliminamos desde el <think> huérfano en adelante.
+    const orphanIndex = cleaned.toLowerCase().indexOf('<think>');
+    if (orphanIndex !== -1) {
+      cleaned = cleaned.substring(0, orphanIndex).trim();
+    }
+    
+    // 2) Eliminar formato Markdown para que el TTS no lea "asterisco"
+    cleaned = cleaned.replace(/\*{1,3}([^*]+?)\*{1,3}/g, '$1');  // *italica* y **negrita**
+    cleaned = cleaned.replace(/^#{1,6}\s+/gm, '');                 // ## encabezados
+    cleaned = cleaned.replace(/`([^`]+)`/g, '$1');                  // `inline code`
+    cleaned = cleaned.replace(/^---+$/gm, '');                      // --- horizontal rules
+    cleaned = cleaned.replace(/^\s*[•\-]\s+/gm, '');              // list markers
+    cleaned = cleaned.replace(/\n{2,}/g, '\n').replace(/  +/g, ' ').trim();
+    
+    if (!cleaned) throw new Error("Texto vacío después de limpiar");
+    return cleaned;
+  };
 
-  throw new Error('Todos los LLMs fallaron en la escalera de fallback');
+  // Priorizamos OrcaRouter si la llave está configurada
+  if (korca) { try { return cleanAndValidate(await callOrcaRouter(korca, messages)); } catch(e) { console.warn('⚠️ OrcaRouter falló:', e.message); } }
+  if (kgroq1) { try { return cleanAndValidate(await callGroq(kgroq1, messages)); } catch(e) { console.warn('⚠️ Groq1 falló:', e.message); } }
+  if (kgroq2) { try { return cleanAndValidate(await callGroq(kgroq2, messages)); } catch(e) { console.warn('⚠️ Groq2 falló:', e.message); } }
+  if (kmistral) { try { return cleanAndValidate(await callMistral(kmistral, messages)); } catch(e) { console.warn('⚠️ Mistral falló:', e.message); } }
+  if (kor1) { try { return cleanAndValidate(await callOpenRouter(kor1, messages)); } catch(e) { console.warn('⚠️ OpenRouter1 falló:', e.message); } }
+  if (kor2) { try { return cleanAndValidate(await callOpenRouter(kor2, messages)); } catch(e) { console.warn('⚠️ OpenRouter2 falló:', e.message); } }
+
+
+  throw new Error('Todos los LLMs fallaron');
 }
 
 let currentEdgeVoice = "es-CO-SalomeNeural";
@@ -135,343 +160,47 @@ function setEdgeVoice(voice) {
   if (voice) currentEdgeVoice = voice;
 }
 
-// ── Edge TTS — puro Node.js (edge-tts-universal, sin Python) ───────────────
-// Voz de respaldo: si la voz elegida falla, se reintenta con esta.
-const VOZ_BASE_EDGE = 'es-CO-SalomeNeural';
-
-async function sintetizarConPythonEdge(texto, outputPath) {
-  // Intentar primero con la voz elegida; si falla, reintentar con la voz base.
-  const vocesAProbar = [currentEdgeVoice];
-  if (currentEdgeVoice !== VOZ_BASE_EDGE) vocesAProbar.push(VOZ_BASE_EDGE);
-
-  let ultimoError = null;
-  for (const voz of vocesAProbar) {
-    if (voz !== vocesAProbar[0]) {
-      console.warn(`⚠️ Voz "${currentEdgeVoice}" falló. Reintentando con la voz base (${voz})...`);
-    }
-    try {
-      await sintetizarConEdgeNode(voz, texto, outputPath);
-      return outputPath;
-    } catch (err) {
-      ultimoError = err;
-      try { fs.unlinkSync(outputPath); } catch (_) {} // borrar salida parcial
-    }
-  }
-  throw ultimoError;
-}
-
 async function sintetizarConEdgeNode(voz, texto, outputPath) {
   const { Communicate } = require('edge-tts-universal');
-  const comm = new Communicate(texto, { voice: voz });
+  const { execSync } = require('child_process');
+  const path = require('path');
+  const os = require('os');
+
+  const comm = new Communicate(texto, { voice: voz, volume: '+100%' });
   const chunks = [];
   for await (const chunk of comm.stream()) {
     if (chunk.type === 'audio') chunks.push(chunk.data);
   }
   const buf = Buffer.concat(chunks);
-  fs.writeFileSync(outputPath, buf);
   if (buf.length === 0) {
     throw new Error(`edge-tts-universal (${voz}) no generó audio`);
   }
-}
 
-// ── Llaves de Gradium (escalera) ──────────────────────────────────────────
-// Recolecta las llaves en orden: GRADIUM_API_KEYS (separadas por coma),
-// o las numeradas GRADIUM_API_KEY1..9, o la singular GRADIUM_API_KEY.
-function obtenerGradiumKeys() {
-  const keys = [];
-  if (process.env.GRADIUM_API_KEYS) {
-    for (const k of process.env.GRADIUM_API_KEYS.split(",")) {
-      const t = k.trim();
-      if (t && !t.includes("tu_")) keys.push(t);
-    }
-  } else {
-    for (let i = 1; i <= 9; i++) {
-      const k = (process.env[`GRADIUM_API_KEY${i}`] || "").trim();
-      if (k && !k.includes("tu_")) keys.push(k);
-    }
-    const singular = (process.env.GRADIUM_API_KEY || "").trim();
-    if (singular && !singular.includes("tu_")) keys.push(singular);
-  }
-  return keys;
-}
+  // Guardar archivo original en temp
+  const tempFile = path.join(os.tmpdir(), `base_${Date.now()}_${Math.random().toString(36).substring(7)}.wav`);
+  fs.writeFileSync(tempFile, buf);
 
-// ── Arreglar cabecera WAV ────────────────────────────────────────────────
-// Algunos servicios (Gradium/Free.ai) devuelven WAV con tamaños de cabecera
-// sin rellenar: 0xFFFFFFFF en el tamaño RIFF y en el chunk 'data' (escriben el
-// valor al final pero nunca lo actualizan). El audio es correcto, pero las
-// duraciones parseadas y algunos navegadores fallan. Aquí se parchea la
-// cabecera con los tamaños REALES del archivo. No hace nada si no es WAV.
-function arreglarCabeceraWav(filePath) {
   try {
-    const b = fs.readFileSync(filePath);
-    if (b.length < 44 || b.toString('ascii', 0, 4) !== 'RIFF') return filePath;
-
-    let off = 12;
-    let dataOffset = -1;
-    while (off + 8 <= b.length) {
-      const id = b.toString('ascii', off, off + 4);
-      const sz = b.readUInt32LE(off + 4);
-      if (id === 'data') { dataOffset = off; break; }
-      off += 8 + sz + (sz % 2);
-    }
-    if (dataOffset === -1) return filePath;
-
-    const realDataSize = b.length - (dataOffset + 8);
-    const realRiffSize = b.length - 8;
-    const needsPatch = b.readUInt32LE(dataOffset + 4) !== realDataSize || b.readUInt32LE(4) !== realRiffSize;
-    if (needsPatch) {
-      b.writeUInt32LE(realDataSize, dataOffset + 4);
-      b.writeUInt32LE(realRiffSize, 4);
-      fs.writeFileSync(filePath, b);
-      console.log("   🛠️  Cabecera WAV corregida (tamaños reales parcheados)");
-    }
-  } catch (_) { /* no es un WAV válido o no se pudo escribir: ignorar */ }
-  return filePath;
-}
-
-// ── Sintetizar con Gradium (voz clonada de mamá) ──────────────────────────
-async function sintetizarConGradium(texto, outputPath) {
-  console.log("🎙️  Sintetizando con la voz de mamá (Gradium)...");
-
-  // Construir la "escalera" de llaves
-  const keys = obtenerGradiumKeys();
-
-  if (keys.length === 0) {
-    throw new Error("❌ No hay ninguna GRADIUM_API_KEY configurada en tu .env (usa GRADIUM_API_KEYS o GRADIUM_API_KEY1..9)");
-  }
-
-  let ultimoError = null;
-
-  for (let i = 0; i < keys.length; i++) {
-    const currentKey = keys[i];
-    if (keys.length > 1) {
-      console.log(`    Probando llave ${i + 1} de ${keys.length}...`);
-    }
-
-    const response = await fetch("https://api.gradium.ai/api/post/speech/tts", {
-      method: "POST",
-      headers: {
-        "x-api-key": currentKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text: texto,
-        voice_id: GRADIUM_VOICE,
-        output_format: "wav",
-        only_audio: true,
-        language: "es",
-        json_config: JSON.stringify({
-          rewrite_rules: "es",
-          cfg_coef: 3.0
-        })
-      })
-    });
-
-    if (response.ok) {
-      const audioBuffer = await response.buffer();
-      fs.writeFileSync(outputPath, audioBuffer);
-      arreglarCabeceraWav(outputPath); // Gradium deja tamaños 0xFFFFFFFF
-      return outputPath; // Éxito total
-    }
-
-    const errText = await response.text();
-    ultimoError = new Error(`Gradium ${response.status}: ${errText}`);
-
-    if ([401, 402, 403, 429].includes(response.status)) {
-      console.log(`⚠️   La llave ${i + 1} falló (Sin saldo o límite alcanzado). Saltando a la siguiente...`);
-      continue;
-    }
-    throw ultimoError;
-  }
-  throw new Error(`❌ Todas las llaves fallaron. Último error: ${ultimoError.message}`);
-}
-
-// ── Sintetizar con Free.ai (voz de mamá, respaldo automático) ─────────────
-// Sistema usado en oraciones-mama2: clona la voz a partir de VOICE_SAMPLE_PATH
-// (voz_mama.wav) y devuelve una URL de audio que luego descargamos.
-// Gratis: 30k tokens/día, sin tarjeta → https://free.ai
-async function sintetizarConFreeAI(texto, outputPath) {
-  console.log("🎙️  Sintetizando con la voz de mamá (Free.ai)...");
-  if (!FREEAI_KEY || FREEAI_KEY.includes("tu_")) {
-    throw new Error("❌ Falta FREEAI_API_KEY en .env (regístrate gratis en https://free.ai)");
-  }
-  if (!fs.existsSync(path.resolve(VOICE_PATH))) {
-    throw new Error(`❌ No se encontró el audio de la voz en: ${VOICE_PATH}. Configura VOICE_SAMPLE_PATH en .env`);
-  }
-
-  console.log("   -> Enviando texto + voz de muestra a Free.ai (puede tardar 1-2 minutos)...");
-
-  const form = new FormData();
-  form.append("text", texto);
-  form.append("audio", fs.createReadStream(path.resolve(VOICE_PATH)), {
-    filename: path.basename(VOICE_PATH),
-    contentType: VOICE_PATH.toLowerCase().endsWith(".mp3") ? "audio/mpeg" : "audio/wav"
-  });
-
-  // Timeout para que el servidor NUNCA se quede colgado esperando a Free.ai
-  const controller = new AbortController();
-  let timer = null;
-  const armarTimeout = (ms) => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => controller.abort(), ms);
-  };
-  armarTimeout(150000); // la clonación puede tardar 1-2 minutos
-  try {
-    const response = await fetch("https://api.free.ai/v1/voice/clone/", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${FREEAI_KEY}`,
-        ...form.getHeaders()
-      },
-      body: form,
-      signal: controller.signal
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      if (response.status === 401) throw new Error("Free.ai: API key inválida. Verifica FREEAI_API_KEY en .env");
-      if (response.status === 429) throw new Error("Free.ai: límite diario alcanzado (30k tokens/día). Vuelve mañana.");
-      throw new Error(`Free.ai ${response.status}: ${err}`);
-    }
-
-    let data;
-    try {
-      data = await response.json();
-    } catch (_) {
-      throw new Error(`Free.ai: respuesta inesperada (no es JSON), HTTP ${response.status}`);
-    }
-    if (!data.audio_url) {
-      throw new Error("Free.ai: No se recibió la URL del audio en la respuesta.");
-    }
-
-    console.log("   -> ¡Audio generado! Descargando archivo...");
-    armarTimeout(60000); // la descarga tiene su propio margen de 60s
-    const audioRes = await fetch(data.audio_url, { signal: controller.signal });
-    if (!audioRes.ok) throw new Error("Free.ai: Error al descargar el audio generado.");
-
-    const audioBuffer = await audioRes.buffer();
-    fs.writeFileSync(outputPath, audioBuffer);
-    if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
-      throw new Error("Free.ai: el audio descargado está vacío");
-    }
-    arreglarCabeceraWav(outputPath); // si el audio es WAV con cabecera corrupta
-    return outputPath;
-  } catch (err) {
-    if (err.name === "AbortError") {
-      throw new Error("Free.ai: la síntesis tardó demasiado (timeout de 150s). Inténtalo de nuevo.");
-    }
-    throw err;
+    // Aplicar filtro de loro (v1: tono agudo)
+    const cmd = `ffmpeg -y -i "${tempFile}" -af "rubberband=pitch=1.5" "${outputPath}"`;
+    execSync(cmd, { stdio: 'pipe' });
   } finally {
-    clearTimeout(timer);
+    try { fs.unlinkSync(tempFile); } catch (e) {}
   }
 }
 
-// ── Sintetizar con Qwen3-TTS (HuggingFace Space, gratis, sin API key) ─────────
-// Clona la voz a partir de VOICE_SAMPLE_PATH usando el modelo Qwen3-TTS.
-// ~40 segundos por oración. No requiere ningún API key.
-async function sintetizarConQwenTTS(texto, outputPath) {
-  console.log("🎙️  Sintetizando con Qwen3-TTS (Hugging Face)...");
-  if (!fs.existsSync(path.resolve(VOICE_PATH))) {
-    throw new Error(`❌ No se encontró el audio de la voz en: ${VOICE_PATH}. Configura VOICE_SAMPLE_PATH en .env`);
-  }
-
-  // Importación dinámica del cliente Gradio (ES Module)
-  const { Client } = await import("@gradio/client");
-
-  const client = await Client.connect("Qwen/Qwen3-TTS");
-
-  const audioBuffer = fs.readFileSync(path.resolve(VOICE_PATH));
-  const audioBlob   = new Blob([audioBuffer], { type: "audio/wav" });
-
-  console.log("   -> Enviando voz de muestra + texto a Qwen3-TTS (puede tardar ~40s)...");
-  const result = await client.predict("/generate_voice_clone", {
-    ref_audio:        audioBlob,
-    ref_text:         "",
-    target_text:      texto,
-    language:         "Spanish",
-    use_xvector_only: true,
-    model_size:       "1.7B"
-  });
-
-  if (!result.data || !result.data[0] || !result.data[0].url) {
-    throw new Error("Qwen3-TTS: La respuesta no contiene URL de audio.");
-  }
-
-  console.log("   -> ¡Audio generado! Descargando...");
-  const audioRes = await fetch(result.data[0].url);
-  if (!audioRes.ok) throw new Error(`Qwen3-TTS: Error al descargar el audio (${audioRes.status})`);
-
-  const buf = await audioRes.buffer();
-  fs.writeFileSync(outputPath, buf);
-  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size === 0) {
-    throw new Error("Qwen3-TTS: El audio descargado está vacío");
-  }
-  arreglarCabeceraWav(outputPath);
-  return outputPath;
-}
-
-// ── Sintetizar voz: Edge TTS | Qwen3-TTS | Gradium | cascade ──────────────────
-// Retorna { path: string, ttsProvider: 'cloned' | 'edge' }
-//  - ttsProvider='cloned'  → video cierre "Declaración de victoria"
-//  - ttsProvider='edge'    → video cierre "Declaracion de victoria salome"
 async function sintetizarVoz(texto, outputPath) {
-
-  // ── Modo cascade: Gradium → Qwen3-TTS → Free.ai → Edge TTS ──────────────────
-  if (USE_FREE_TTS === 'cascade') {
-    // 1) Gradium (voz clonada, el más rápido)
-    try {
-      await sintetizarConGradium(texto, outputPath);
-      console.log('✅ [cascade] Voz sintetizada con Gradium');
-      return { path: outputPath, ttsProvider: 'cloned' };
-    } catch (e1) {
-      console.warn(`⚠️  [cascade] Gradium falló: ${e1.message} → intentando Qwen3-TTS...`);
-    }
-    // 2) Qwen3-TTS en HuggingFace (~40s, voz clonada, sin API key)
-    try {
-      await sintetizarConQwenTTS(texto, outputPath);
-      console.log('✅ [cascade] Voz sintetizada con Qwen3-TTS (HuggingFace)');
-      return { path: outputPath, ttsProvider: 'cloned' };
-    } catch (e2) {
-      console.warn(`⚠️  [cascade] Qwen3-TTS falló: ${e2.message} → intentando Free.ai...`);
-    }
-    // 3) Free.ai (más lento, puede tardar 2+ minutos)
-    try {
-      await sintetizarConFreeAI(texto, outputPath);
-      console.log('✅ [cascade] Voz sintetizada con Free.ai');
-      return { path: outputPath, ttsProvider: 'cloned' };
-    } catch (e3) {
-      console.warn(`⚠️  [cascade] Free.ai falló: ${e3.message} → usando Edge TTS de respaldo...`);
-    }
-    // 4) Edge TTS (último recurso, instantáneo)
-    console.log(`🎙️  [cascade] Sintetizando con Edge TTS (${currentEdgeVoice})...`);
-    await sintetizarConPythonEdge(texto, outputPath);
-    return { path: outputPath, ttsProvider: 'edge' };
-  }
-
-  // ── Modo true: solo Edge TTS ────────────────────────────────────────────────
-  if (USE_FREE_TTS === 'true') {
-    console.log(`🎙️  Sintetizando con la voz gratuita (Edge TTS Python - ${currentEdgeVoice})...`);
-    try {
-      await sintetizarConPythonEdge(texto, outputPath);
-      return { path: outputPath, ttsProvider: 'edge' };
-    } catch (err) {
-      console.error("❌ Falló Edge TTS:", err.message);
-      throw err;
-    }
-  }
-
-  // ── Modo false (por defecto): Gradium → Free.ai ─────────────────────────────
+  console.log(`🎙️  Sintetizando con Edge TTS (${currentEdgeVoice})...`);
   try {
-    await sintetizarConGradium(texto, outputPath);
-    return { path: outputPath, ttsProvider: 'cloned' };
-  } catch (gradiumErr) {
-    console.warn(`⚠️  Gradium falló: ${gradiumErr.message}`);
-    console.warn("    Intentando con Free.ai como respaldo...");
+    await sintetizarConEdgeNode(currentEdgeVoice, texto, outputPath);
+    return { path: outputPath, ttsProvider: 'edge' };
+  } catch (err) {
+    console.warn(`⚠️ Voz "${currentEdgeVoice}" falló. Reintentando con voz base (es-CO-SalomeNeural)...`);
     try {
-      await sintetizarConFreeAI(texto, outputPath);
-      return { path: outputPath, ttsProvider: 'cloned' };
-    } catch (freeAiErr) {
-      throw new Error(`❌ Gradium y Free.ai fallaron. Último error: ${freeAiErr.message}`);
+      await sintetizarConEdgeNode('es-CO-SalomeNeural', texto, outputPath);
+      return { path: outputPath, ttsProvider: 'edge' };
+    } catch(e2) {
+      throw new Error(`Edge TTS falló: ${e2.message}`);
     }
   }
 }

@@ -1,94 +1,147 @@
-# 🙏 Generador de Oraciones con la voz de Mamá
+# 🦜 Las Guacamayas Sabias — Live de Preguntas sobre Convivencia Escolar
 
-Un homenaje especial: una IA que genera oraciones con la voz de tu mamá y las transmite en un Live de TikTok.
+Un live interactivo donde **3 guacamayas sabias** responden preguntas de estudiantes sobre el **Manual de Convivencia** de la Escuela Normal de Mariquita. Los estudiantes escriben en el chat y las guacamayas responden con voz, animaciones y consejos basados en el reglamento escolar.
 
 ---
 
 ## ⚙️ Configuración (una sola vez)
 
-### Paso 1 — Instalar Node.js
-Si no lo tienes: https://nodejs.org (descarga la versión LTS)
+### 1. Instalar Node.js
+Si no lo tienes: https://nodejs.org (versión LTS)
 
-### Paso 2 — Instalar dependencias
-Abre una terminal en esta carpeta y ejecuta:
+### 2. Instalar dependencias
 ```bash
 npm install
 ```
 
-### Paso 3 — Obtener API Keys de IA (GRATIS)
-El motor usa varios proveedores de IA para mayor disponibilidad (con fallback automático). No necesitas todos, con uno basta:
-1. **Groq**: Crea una cuenta gratis y obtén tu API Key en https://console.groq.com/keys
-2. **OpenRouter**: Crea una cuenta gratis y obtén tu API Key en https://openrouter.ai/keys
+### 3. Obtener API Keys de IA (GRATIS)
+El motor usa varios proveedores con **fallback automático** (si uno falla, usa el siguiente). Con una sola basta:
 
-### Paso 4 — Configurar el archivo .env
-1. Renombra tu archivo `.env.example` a `.env` (o crea uno nuevo si no existe).
-2. Pega tus credenciales:
+| Proveedor | Registro gratuito | Modelo |
+|-----------|------------------|--------|
+| **Groq** | https://console.groq.com/keys | Qwen 3.6 27B |
+| **OpenRouter** | https://openrouter.ai/keys | Nemotron 3.5 Lightning |
+| **OrcaRouter** | https://orcarouter.ai | Gratuito sin key |
+
+### 4. Configurar `.env`
+Renombra `.env.example` a `.env` (o crea uno nuevo):
 
 ```env
-GROQ_API_KEY=gsk_...tu_clave_aqui
-OPENROUTER_API_KEY=sk-or-v1-...tu_clave_aqui
+# API Keys (con una basta)
+OPENROUTER_API_KEY=sk-or-v1-...
+GROQ_API_KEY=gsk_...
 
 # TikTok Live
 TIKTOK_USERNAME=tu_usuario_de_tiktok
 
-# Configuración de voz (true para usar la voz gratis de Microsoft Edge)
+# Voz TTS (true = Edge TTS gratis ilimitado)
 USE_FREE_TTS=true
 ```
 
 ---
 
-## ▶️ Usar el Live Stream (Servidor Web y TikTok)
-
-Para iniciar el servidor que se conecta a TikTok y maneja las peticiones en vivo:
+## ▶️ Iniciar el Live
 
 ```bash
 npm run server
 ```
 
-Luego abre en tu navegador:
-- **Reproductor (para capturar en OBS):** `http://localhost:3002/player`
+Abre en tu navegador:
+- **Reproductor (para OBS):** `http://localhost:3002/player`
 - **Panel de Control:** `http://localhost:3002/admin`
 
-*(También puedes abrir el Panel de Control desde tu celular ingresando a la IP que te muestre la consola, si estás en la misma red WiFi).*
+En celular (misma red WiFi): usa la IP que muestra la consola.
+
+### En Render (producción)
+- **Reproductor:** https://oraciones-mama-live.onrender.com/player
+- **Panel:** https://oraciones-mama-live.onrender.com/admin
 
 ---
 
-### Usar solo el generador por consola (Pruebas)
+## 🧠 Cómo funciona
 
-Si solo quieres generar audios escribiendo en la terminal:
+### Flujo de una pregunta
+```
+Estudiante escribe en chat → API detecta petición → RAG busca en el Manual de Convivencia
+→ IA genera respuesta → Edge TTS sintetiza voz → Guacamaya habla con animación
+```
+
+### Animaciones de la guacamaya
+| Video | Cuándo se usa |
+|-------|---------------|
+| `guacamaya_viene` / `guacamaya_va` | Animación de entrada y salida de la oración |
+| `guacamaya_habla1` / `habla2` | La guacamaya hablando (con TTS) |
+| `guacamaya_habla3` | Declaración de victoria ("En el nombre de Jesús, amén") |
+| `guacamaya_pensando` | Mientras la IA genera la respuesta |
+| `guacamayas_default1-4` | Animaciones idle (reposo) con sonido contextual |
+
+### Sistema de audio contextual
+Cada video idle tiene su propio sonido que se reproduce en loop:
+- `guacamaya_vuela.mp3` → para `guacamayas_default4`
+- `guacayamas_default2.mp3` → para `guacamayas_default2`
+- `guacamaya_vuela2.mp3` → para `guacamaya_va` / `guacamaya_viene` (1 vez)
+- `sonido_fondo.mp3` → música ambiental siempre en loop
+
+### Radio ambiental (LofiCafe)
+El player incluye un widget flotante de **Lofi CAFÉ** que suena de fondo. Se oculta automáticamente cuando la guacamaya habla (ducking).
+
+---
+
+## 🎙️ Voz TTS
+
+La síntesis de voz usa **Edge TTS** (gratuito, ilimitado, voz colombiana):
+
+- Voz por defecto: `es-CO-SaloméNeural`
+- Se puede cambiar desde el Panel de Control
+- Fallback automático a `es-CO-SaloméNeural` si la voz seleccionada falla
+
+### Oraciones estándar (ahorro de créditos)
+Para las oraciones genéricas idle (reposo), se usan audios pre-generados en `oraciones_estandar/`:
 
 ```bash
-npm start
+node generar_oraciones_estandar.mjs   # Genera 6 oraciones estándar
 ```
-Luego escribe comandos como:
-`/oracion por mis hijos Andres y Pablo que están en el colegio`
 
 ---
 
-## 🎙️ Modos de voz (TTS)
+## 📁 Estructura del proyecto
 
-El motor de voz se elige con la variable `USE_FREE_TTS` del archivo `.env`:
-
-- `USE_FREE_TTS=true` → voz gratuita de **Edge TTS** (genérica, no necesita llaves, acento colombiano disponible).
-- Sin `USE_FREE_TTS` (o en `false`) → **voz de mamá**: primero intenta con **Gradium** (`GRADIUM_API_KEYS` + `GRADIUM_VOICE_ID`) y, si falla o no está configurado, usa el respaldo automático con **Free.ai** (`FREEAI_API_KEY` + `VOICE_SAMPLE_PATH`, gratis, 30k tokens/día).
-
----
-
-## 📻 Oraciones estándar (ahorro de Gradium/Free.ai)
-
-Cuando se usa la **voz clonada de mamá** (`USE_FREE_TTS=false`), las oraciones genéricas que suenan en reposo (idle, cada 3 min) y tras cada bloque de música **se generan y sintetizan desde cero cada vez** (gastando créditos de la API).
-
-Para evitarlo, el motor **rota audios pre-generados** con la voz de mamá desde la carpeta `oraciones_estandar/` (cero llamadas API por oración genérica):
-
-1. **Genera los audios una sola vez** (fuerza la voz clonada aunque `.env` tenga `USE_FREE_TTS=true`):
-   ```bash
-   node generar_oraciones_estandar.mjs
-   ```
-2. Esto crea `oraciones_estandar/estandar_XX.wav` (6 oraciones) + `manifest.json`.
-3. El motor los detecta al arrancar y los rota sin repetir. Para desactivar esto: pon `USAR_ORACIONES_ESTANDAR=false` en `.env`.
-
-*Nota: Con `USE_FREE_TTS=true` (Edge TTS, que es ilimitado y gratis) el sistema ignora esto y sigue generando oraciones frescas y únicas siempre.*
+```
+├── server.mjs                 # Servidor HTTP + WebSocket + TikTok Live
+├── oraciones.js               # Motor de IA (LLM) + TTS
+├── prayer-engine-mama.mjs     # Motor de oraciones (ciclo idle/oración)
+├── buscarContexto.js           # RAG: búsqueda en el Manual de Convivencia
+├── contexto_guacamayas.txt    # Chunks del Manual de Convivencia
+├── guacamayas-player.html     # Player principal (para OBS/celular)
+├── admin_guacamayas.html      # Panel de control
+├── sonidos/                   # Audios del sistema
+├── oraciones_estandar/        # Oraciones pre-generadas (idle)
+├── *.mp4                      # Animaciones de la guacamaya (11 videos)
+└── manual-de-convivencia-escuela-normal.pdf  # Fuente de conocimiento
+```
 
 ---
 
-*Hecho con amor para honrar a una mamá que ora. 🙏*
+## 🔧 Comandos útiles
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm run server` | Inicia el servidor completo (Live + Player + API) |
+| `npm start` | Modo consola: genera oraciones escribiendo en terminal |
+| `node generar_oraciones_estandar.mjs` | Regenera audios de oraciones idle |
+
+---
+
+## 📋 Panel de Control
+
+Desde el panel (`/admin`) puedes:
+- Simular peticiones de oración
+- Controlar música de fondo
+- Cambiar voz TTS en tiempo real
+- Ajustar chroma key (fondo verde)
+- Activar animaciones manualmente
+- Ver estado del motor de oraciones en tiempo real
+
+---
+
+*Hecho con amor para honrar a las guacamayas sabias de Mariquita. 🦜🙏*

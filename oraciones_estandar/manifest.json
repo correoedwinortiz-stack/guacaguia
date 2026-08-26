@@ -1,50 +1,82 @@
 [
   {
     "file": "estandar_01.wav",
-    "tema": "Bendición para quienes ven la transmisión",
-    "text": "Padre celestial, te damos gracias por este maravilloso tiempo de comunión. Te ruego que bendigas grandemente a todos los que nos acompañan en esta transmisión el día de hoy. Guarda sus hogares de todo peligro, cubre a sus familias bajo tu manto protector y dales la sabiduría que necesitan para afrontar sus batallas diarias con valentía y fe inquebrantable. Que cada corazón que está viendo sienta tu presencia real y tu amor que consuela. Te pedimos que multipliques sus alegrías, que sanes sus heridas y que les des la certeza de que nunca están solos, porque tú caminas a su lado siempre.",
-    "audioDurMs": 46400,
-    "estDurMs": 37091,
-    "isStrong": true
+    "tema": "Prevención del abuso",
+    "text": "Amigas y amigos, nadie tiene derecho a tocar tu cuerpo sin tu permiso, ni a hacerte sentir miedo o vergüenza. Si alguien te hace sentir incómodo o te pide guardar secretos que te duelen, habla con un adulto de confianza de inmediato. Tu seguridad es lo más importante y no estás solo ni sola.",
+    "audioDurMs": 18504,
+    "estDurMs": 19636,
+    "isStrong": false
   },
   {
     "file": "estandar_02.wav",
-    "tema": "Sanidad para los enfermos",
-    "text": "Señor Jesús, tú que eres el médico de los médicos, hoy te presento a todos los que están atravesando una enfermedad. Toca sus cuerpos con tu poder sanador, restaura cada célula, cada órgano, cada parte de su ser. Que la medicina haga su trabajo y que tu mano divina haga el milagro. Alivia el dolor de quienes sufren, fortalece a los que cuidan de ellos y llena sus hogares de esperanza. Te pedimos fe para esperar en ti, paciencia en los días difíciles y la certeza de que tu plan es de restauración completa. Sana también las heridas del alma, que son las más profundas, y devuélveles la paz.",
-    "audioDurMs": 45280,
-    "estDurMs": 39636,
-    "isStrong": true
+    "tema": "Autocuidado personal",
+    "text": "Cuidarte a ti mismo es el primer paso para cuidar a los demás. Dormir bien, alimentarte, hacer ejercicio y tomarte momentos para descansar no son lujos, son necesidades. Cuando te cuidas, tienes más energía, mejor ánimo y puedes dar lo mejor de ti en la escuela y en casa.",
+    "audioDurMs": 18674,
+    "estDurMs": 17818,
+    "isStrong": false
   },
   {
     "file": "estandar_03.wav",
-    "tema": "Provisión y trabajo",
-    "text": "Padre celestial, hoy te encomiendo a todos los que están buscando trabajo o luchando por el sustento de su familia. Tú conoces cada necesidad antes de que la expresemos. Abre puertas que nadie puede cerrar, provee de maneras que no imaginamos y bendice el trabajo de sus manos. Que llegue la oportunidad esperada, que los salarios sean justos y que nunca falte el pan en sus mesas. Te pedimos que los libres de la angustia y les des creatividad e inteligencia para avanzar. Confiamos en tu provisión abundante, porque tú eres el Dios que alimenta a las aves y viste los lirios del campo, y cuánto más cuidarás de tus hijos.",
-    "audioDurMs": 44640,
-    "estDurMs": 40364,
+    "tema": "Construir tu autoestima",
+    "text": "Tú tienes un valor enorme que no depende de tus notas, de tu ropa ni de lo que otros piensen. Cada vez que te hablas con respeto, que intentas algo nuevo o que reconoces tus propios logros, estás fortaleciendo tu autoestima. Trátate con la misma amabilidad que le darías a tu mejor amigo.",
+    "audioDurMs": 18482,
+    "estDurMs": 19273,
     "isStrong": false
   },
   {
     "file": "estandar_04.wav",
-    "tema": "Paz y alivio de la ansiedad",
-    "text": "Señor Jesús, te presento a todos los que están cargando ansiedad, miedo y preocupación. Tú dijiste que vengamos a ti los que estamos cansados y cargados, que tú nos darás descanso. Toma de sus hombros ese peso que no pueden llevar. Calma sus pensamientos en medio de la noche, dales un sueño tranquilo y la certeza de que mañana tendrás nuevas misericordias. Que tu paz, esa que sobrepasa todo entendimiento, guarde sus corazones y sus mentes. Enséñales a soltar el control y a descansar en tus promesas. Que sientan que tú estás a cargo, y que eso les baste para vivir serenos.",
-    "audioDurMs": 44800,
-    "estDurMs": 37091,
+    "tema": "Sana convivencia escolar",
+    "text": "Una escuela donde todos nos sentimos seguros empieza con pequeñas acciones diarias. Saludar con una sonrisa, escuchar cuando alguien habla, no burlarse de los errores ajenos y pedir las cosas con respeto, son hábitos que transforman el ambiente. La convivencia sana se construye entre todos, un detalle a la vez.",
+    "audioDurMs": 19920,
+    "estDurMs": 18182,
     "isStrong": false
   },
   {
     "file": "estandar_05.wav",
-    "tema": "Gratitud por las bendiciones",
-    "text": "Padre celestial, hoy quiero darte gracias por las bendiciones que derramas sobre nuestras vidas cada día. Gracias por el alimento en la mesa, por el techo que nos cubre, por la salud, por la familia y los amigos. Gracias por las pequeñas cosas que a veces pasamos por alto: una sonrisa, un abrazo, una palabra de aliento a tiempo. Te pedimos un corazón agradecido que reconozca tu bondad en todo. Que la gratitud sea nuestro lenguaje diario y que, al ser bendecidos, seamos también bendición para los demás. Enséñanos a valorar lo que tenemos mientras trabajamos por lo que soñamos.",
-    "audioDurMs": 46480,
-    "estDurMs": 36364,
+    "tema": "Identidad y diversidad",
+    "text": "Cada persona es única y eso es algo hermoso. Tus gustos, tu forma de hablar, tu historia y tu familia hacen parte de quién eres. Respetar la identidad de los demás, incluso cuando es diferente a la tuya, nos enriquece a todos. La diversidad no es un problema, es la mayor riqueza de nuestra comunidad.",
+    "audioDurMs": 20545,
+    "estDurMs": 20000,
     "isStrong": false
   },
   {
     "file": "estandar_06.wav",
-    "tema": "Protección en los viajes",
-    "text": "Padre celestial, te encomiendo a todos los que están en camino, de viaje o emprendiendo algo nuevo. Guárdalos en cada carretera, en cada vuelo, en cada paso que den. Manda tus ángeles para que los acompañen y los protejan de todo peligro. Que lleguen sanos y salvos a sus destinos y que cada viaje sea una oportunidad para ver tu fidelidad. Te pedimos que los rodees con tu presencia, que les des discernimiento en las decisiones y que ningún mal se acerque a sus vidas. Que su regreso a casa sea con alegría y con historias de tu cuidado.",
-    "audioDurMs": 41600,
-    "estDurMs": 36000,
+    "tema": "Pedir ayuda es valiente",
+    "text": "A veces pensamos que pedir ayuda es señal de debilidad, pero en realidad es una de las decisiones más valientes que puedes tomar. Si algo te preocupa, si te sientes triste o si algo no está bien en casa o en la escuela, habla con un maestro, un orientador o un familiar de confianza. No tienes que cargarlo solo.",
+    "audioDurMs": 19420,
+    "estDurMs": 21455,
+    "isStrong": false
+  },
+  {
+    "file": "estandar_07.wav",
+    "tema": "Límites y respeto",
+    "text": "Conocer y respetar los límites propios y ajenos es fundamental para vivir en comunidad. Tú tienes derecho a decir no cuando algo te incomoda, y ese no merece ser respetado siempre. Del mismo modo, cuando alguien dice no, debemos aceptarlo con gracia. Los límites son la base del respeto verdadero entre las personas.",
+    "audioDurMs": 20637,
+    "estDurMs": 19273,
+    "isStrong": false
+  },
+  {
+    "file": "estandar_08.wav",
+    "tema": "Emociones y manejo del enojo",
+    "text": "El enojo, la tristeza y el miedo son emociones normales que todos sentimos. Lo que importa es qué hacemos con ellas. Antes de reaccionar cuando estás enojado, respira profundo, cuenta hasta diez y piensa en cómo expresar lo que sientes sin lastimar a nadie. Tus emociones tienen un mensaje importante, escúchalas.",
+    "audioDurMs": 20807,
+    "estDurMs": 18545,
+    "isStrong": false
+  },
+  {
+    "file": "estandar_09.wav",
+    "tema": "Redes de apoyo",
+    "text": "Nadie está diseñado para estar solo. Tener personas de confianza en tu vida, ya sea un amigo, un familiar o un maestro, hace que los momentos difíciles sean más fáciles de superar. Cultiva esas relaciones con honestidad y cariño. Una red de apoyo sólida es uno de los tesoros más valiosos que puedes tener.",
+    "audioDurMs": 20307,
+    "estDurMs": 19636,
+    "isStrong": false
+  },
+  {
+    "file": "estandar_10.wav",
+    "tema": "Orgullo de ser quien eres",
+    "text": "Siéntete orgulloso de quien eres hoy, con tus logros y también con tus áreas de mejora. Crecer implica equivocarse y aprender. Cada error es una lección y cada esfuerzo cuenta. No te compares con los demás, enfócate en tu propio camino. Eres suficiente, eres capaz y tienes un lugar único e importante en este mundo.",
+    "audioDurMs": 22176,
+    "estDurMs": 20000,
     "isStrong": false
   }
 ]

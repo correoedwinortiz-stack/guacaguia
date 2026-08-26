@@ -1,18 +1,15 @@
 // ============================================================
-//  📻 Generador de ORACIONES ESTÁNDAR (voz de mamá)
+//  📻 Generador de ORACIONES ESTÁNDAR (voz Dalia-MX)
 //
-//  Genera UNA SOLA VEZ los audios de las oraciones genéricas que
-//  el motor rota en idle / tras la música, para NO gastar Gradium
-//  ni Free.ai en cada ciclo. Resultado:
-//     oraciones_estandar/estandar_XX.wav  +  manifest.json
+//  Genera UNA SOLA VEZ los audios de los mensajes genéricos que
+//  el motor rota en idle para promover autocuidado, autoestima,
+//  sana convivencia, identidad y prevención del abuso.
 //
-//  Uso (fuerza la voz de mamá aunque .env tenga USE_FREE_TTS=true):
+//  Uso:
 //     node generar_oraciones_estandar.mjs        # genera solo los que faltan
 //     node generar_oraciones_estandar.mjs --force # regenera TODOS
 // ============================================================
 
-// IMPORTANTE: forzar la voz de mamá ANTES de cargar el módulo (por eso la
-// importación es dinámica: los `import` estáticos se ejecutarían primero).
 process.env.USE_FREE_TTS = 'false';
 
 import fs from 'fs';
@@ -26,36 +23,53 @@ const oraciones    = oracionesMod.default || oracionesMod;
 const engineMod    = await import('./prayer-engine-mama.mjs');
 const { quitarCierre, leerDuracionWav, esOracionFuerte } = engineMod;
 
+// Forzar voz Dalia-MX para todas las oraciones estándar
+oraciones.setEdgeVoice('es-MX-DaliaNeural');
+
 const DIR = path.join(__dirname, 'oraciones_estandar');
 fs.mkdirSync(DIR, { recursive: true });
 
-// ── Las 6 oraciones estándar (estilo mamá colombiana, 80-95 palabras) ──────
-// OJO: no deben terminar con "En el nombre de Jesús, amén y amén" ni con
-// "Amén" suelto: esa frase la pronuncia el video de cierre de la transmisión.
+// ── 10 mensajes: prevención del abuso, autocuidado, autoestima, convivencia, identidad ──
 const ORACIONES = [
   {
-    tema: 'Bendición para quienes ven la transmisión',
-    texto: 'Padre celestial, te damos gracias por este maravilloso tiempo de comunión. Te ruego que bendigas grandemente a todos los que nos acompañan en esta transmisión el día de hoy. Guarda sus hogares de todo peligro, cubre a sus familias bajo tu manto protector y dales la sabiduría que necesitan para afrontar sus batallas diarias con valentía y fe inquebrantable. Que cada corazón que está viendo sienta tu presencia real y tu amor que consuela. Te pedimos que multipliques sus alegrías, que sanes sus heridas y que les des la certeza de que nunca están solos, porque tú caminas a su lado siempre.'
+    tema: 'Prevención del abuso',
+    texto: 'Amigas y amigos, nadie tiene derecho a tocar tu cuerpo sin tu permiso, ni a hacerte sentir miedo o vergüenza. Si alguien te hace sentir incómodo o te pide guardar secretos que te duelen, habla con un adulto de confianza de inmediato. Tu seguridad es lo más importante y no estás solo ni sola.'
   },
   {
-    tema: 'Sanidad para los enfermos',
-    texto: 'Señor Jesús, tú que eres el médico de los médicos, hoy te presento a todos los que están atravesando una enfermedad. Toca sus cuerpos con tu poder sanador, restaura cada célula, cada órgano, cada parte de su ser. Que la medicina haga su trabajo y que tu mano divina haga el milagro. Alivia el dolor de quienes sufren, fortalece a los que cuidan de ellos y llena sus hogares de esperanza. Te pedimos fe para esperar en ti, paciencia en los días difíciles y la certeza de que tu plan es de restauración completa. Sana también las heridas del alma, que son las más profundas, y devuélveles la paz.'
+    tema: 'Autocuidado personal',
+    texto: 'Cuidarte a ti mismo es el primer paso para cuidar a los demás. Dormir bien, alimentarte, hacer ejercicio y tomarte momentos para descansar no son lujos, son necesidades. Cuando te cuidas, tienes más energía, mejor ánimo y puedes dar lo mejor de ti en la escuela y en casa.'
   },
   {
-    tema: 'Provisión y trabajo',
-    texto: 'Padre celestial, hoy te encomiendo a todos los que están buscando trabajo o luchando por el sustento de su familia. Tú conoces cada necesidad antes de que la expresemos. Abre puertas que nadie puede cerrar, provee de maneras que no imaginamos y bendice el trabajo de sus manos. Que llegue la oportunidad esperada, que los salarios sean justos y que nunca falte el pan en sus mesas. Te pedimos que los libres de la angustia y les des creatividad e inteligencia para avanzar. Confiamos en tu provisión abundante, porque tú eres el Dios que alimenta a las aves y viste los lirios del campo, y cuánto más cuidarás de tus hijos.'
+    tema: 'Construir tu autoestima',
+    texto: 'Tú tienes un valor enorme que no depende de tus notas, de tu ropa ni de lo que otros piensen. Cada vez que te hablas con respeto, que intentas algo nuevo o que reconoces tus propios logros, estás fortaleciendo tu autoestima. Trátate con la misma amabilidad que le darías a tu mejor amigo.'
   },
   {
-    tema: 'Paz y alivio de la ansiedad',
-    texto: 'Señor Jesús, te presento a todos los que están cargando ansiedad, miedo y preocupación. Tú dijiste que vengamos a ti los que estamos cansados y cargados, que tú nos darás descanso. Toma de sus hombros ese peso que no pueden llevar. Calma sus pensamientos en medio de la noche, dales un sueño tranquilo y la certeza de que mañana tendrás nuevas misericordias. Que tu paz, esa que sobrepasa todo entendimiento, guarde sus corazones y sus mentes. Enséñales a soltar el control y a descansar en tus promesas. Que sientan que tú estás a cargo, y que eso les baste para vivir serenos.'
+    tema: 'Sana convivencia escolar',
+    texto: 'Una escuela donde todos nos sentimos seguros empieza con pequeñas acciones diarias. Saludar con una sonrisa, escuchar cuando alguien habla, no burlarse de los errores ajenos y pedir las cosas con respeto, son hábitos que transforman el ambiente. La convivencia sana se construye entre todos, un detalle a la vez.'
   },
   {
-    tema: 'Gratitud por las bendiciones',
-    texto: 'Padre celestial, hoy quiero darte gracias por las bendiciones que derramas sobre nuestras vidas cada día. Gracias por el alimento en la mesa, por el techo que nos cubre, por la salud, por la familia y los amigos. Gracias por las pequeñas cosas que a veces pasamos por alto: una sonrisa, un abrazo, una palabra de aliento a tiempo. Te pedimos un corazón agradecido que reconozca tu bondad en todo. Que la gratitud sea nuestro lenguaje diario y que, al ser bendecidos, seamos también bendición para los demás. Enséñanos a valorar lo que tenemos mientras trabajamos por lo que soñamos.'
+    tema: 'Identidad y diversidad',
+    texto: 'Cada persona es única y eso es algo hermoso. Tus gustos, tu forma de hablar, tu historia y tu familia hacen parte de quién eres. Respetar la identidad de los demás, incluso cuando es diferente a la tuya, nos enriquece a todos. La diversidad no es un problema, es la mayor riqueza de nuestra comunidad.'
   },
   {
-    tema: 'Protección en los viajes',
-    texto: 'Padre celestial, te encomiendo a todos los que están en camino, de viaje o emprendiendo algo nuevo. Guárdalos en cada carretera, en cada vuelo, en cada paso que den. Manda tus ángeles para que los acompañen y los protejan de todo peligro. Que lleguen sanos y salvos a sus destinos y que cada viaje sea una oportunidad para ver tu fidelidad. Te pedimos que los rodees con tu presencia, que les des discernimiento en las decisiones y que ningún mal se acerque a sus vidas. Que su regreso a casa sea con alegría y con historias de tu cuidado.'
+    tema: 'Pedir ayuda es valiente',
+    texto: 'A veces pensamos que pedir ayuda es señal de debilidad, pero en realidad es una de las decisiones más valientes que puedes tomar. Si algo te preocupa, si te sientes triste o si algo no está bien en casa o en la escuela, habla con un maestro, un orientador o un familiar de confianza. No tienes que cargarlo solo.'
+  },
+  {
+    tema: 'Límites y respeto',
+    texto: 'Conocer y respetar los límites propios y ajenos es fundamental para vivir en comunidad. Tú tienes derecho a decir no cuando algo te incomoda, y ese no merece ser respetado siempre. Del mismo modo, cuando alguien dice no, debemos aceptarlo con gracia. Los límites son la base del respeto verdadero entre las personas.'
+  },
+  {
+    tema: 'Emociones y manejo del enojo',
+    texto: 'El enojo, la tristeza y el miedo son emociones normales que todos sentimos. Lo que importa es qué hacemos con ellas. Antes de reaccionar cuando estás enojado, respira profundo, cuenta hasta diez y piensa en cómo expresar lo que sientes sin lastimar a nadie. Tus emociones tienen un mensaje importante, escúchalas.'
+  },
+  {
+    tema: 'Redes de apoyo',
+    texto: 'Nadie está diseñado para estar solo. Tener personas de confianza en tu vida, ya sea un amigo, un familiar o un maestro, hace que los momentos difíciles sean más fáciles de superar. Cultiva esas relaciones con honestidad y cariño. Una red de apoyo sólida es uno de los tesoros más valiosos que puedes tener.'
+  },
+  {
+    tema: 'Orgullo de ser quien eres',
+    texto: 'Siéntete orgulloso de quien eres hoy, con tus logros y también con tus áreas de mejora. Crecer implica equivocarse y aprender. Cada error es una lección y cada esfuerzo cuenta. No te compares con los demás, enfócate en tu propio camino. Eres suficiente, eres capaz y tienes un lugar único e importante en este mundo.'
   }
 ];
 
@@ -72,8 +86,6 @@ for (let i = 0; i < ORACIONES.length; i++) {
   const file = `estandar_${String(i + 1).padStart(2, '0')}.wav`;
   const filePath = path.join(DIR, file);
 
-  // Idempotencia: si el audio ya existe y se puede leer su duración, se salta
-  // (no se vuelve a gastar TTS). Usa --force para regenerar todos.
   const existente = !FORCE && fs.existsSync(filePath) ? leerDuracionWav(filePath) : null;
   if (existente) {
     console.log(`\n(${i + 1}/${ORACIONES.length}) ${tema} — ⏭️ ya existe (${(existente / 1000).toFixed(1)}s), se omite. Usa --force para regenerar.`);

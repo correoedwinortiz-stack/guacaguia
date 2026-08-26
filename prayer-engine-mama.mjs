@@ -22,57 +22,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ── Animaciones (nombres de archivo MP4 sin extensión) ────────────────────────
 const ANIMATIONS = {
-  PRAYING_COMMON: ['Súplica', 'Súplica', 'Súplica', 'Manos al pecho'],
-  VICTORY:   ['Ambos brazos alzados'],
-  // Ojo: TODOS los nombres deben coincidir con un archivo .mp4 existente en la carpeta.
-  IDLE:      ['Respiración calmada', 'Asentir suavemente', 'Cabeza ladeada', 'Manos entrelazadas al frente', 'Respiración visible'],
-  ADORACION: ['Una mano alzada con vaivén', 'Ambas manos alzadas con vaivén'],
-  CANTANDO:  ['Aplaudiendo al ritmo', 'Puño en alto al ritmo'],
+  PRAYING_COMMON: ['guacamaya_habla1', 'guacamaya_habla2'],
+  VICTORY:   ['guacamaya_habla3'],
+  IDLE:      ['guacamayas_default1', 'guacamayas_default2', 'guacamayas_default3', 'guacamayas_default4'],
+  ADORACION: ['guacamayas_default1', 'guacamayas_default2'],
+  CANTANDO:  ['guacamayas_default3', 'guacamayas_default4'],
 };
 
-// El video de cierre "Declaración de victoria" ya incluye el audio de la frase
-// "En el nombre de Jesús, amén y amén" sincronizado con la animación. Por eso
-// el texto TTS NO debe contener esa frase (si la IA la escribe de todos modos,
-// se elimina aquí): el cierre lo pronuncia el video, no la voz.
-function quitarCierre(texto) {
+function limpiarTexto(texto) {
   if (!texto) return texto;
-  let t = texto.trim();
-
-  // 1) ¿El texto termina con "amén" / "amén y amén"? Si sí, casi seguro que la
-  //    frase "en el nombre de Jesús..." que haya cerca del final es el cierre
-  //    (aunque sea largo). Si no termina con amén, solo se elimina la frase si
-  //    le siguen pocas palabras (cierre típico corto), para no truncar oraciones
-  //    donde la IA la menciona a mitad.
-  const terminaAmen = /am[eé]n\s*[.,;:]?\s*$/i.test(t);
-
-  const reFrase = /en\s+el\s+nombre\s+de\s+(jes[úu]s|jesucristo|nuestro\s+se[ñn]or\s+jes[úu]s)/gi;
-  let match;
-  let ultimoIdx = -1;
-  while ((match = reFrase.exec(t)) !== null) ultimoIdx = match.index;
-  if (ultimoIdx !== -1) {
-    const palabrasResto = t.slice(ultimoIdx).split(/\s+/).filter(Boolean).length;
-    if (palabrasResto <= 8 || terminaAmen) {
-      t = t.slice(0, ultimoIdx);
-    }
-  }
-
-  // 2) Quitar "amén" / "amén y amén" sueltos al FINAL.
-  t = t.replace(/\s*(am[eé]n\s+y\s+am[eé]n|am[eé]n)\s*[.,;:]?\s*$/i, '');
-
-  // 3) Limpiar puntuación final duplicada y espacios.
-  t = t.replace(/[\s.,;:]+$/, '').replace(/\s{2,}/g, ' ').trim();
-  return t ? `${t}.` : texto;
+  // Limpiar formato Markdown que el LLM pudo haber generado
+  let t = texto.replace(/\*{1,3}([^*]+?)\*{1,3}/g, '$1');  // *italica* y **negrita**
+  t = t.replace(/^#{1,6}\s+/gm, '');                         // ## encabezados
+  t = t.replace(/`([^`]+)`/g, '$1');                          // `inline code`
+  t = t.replace(/^\s*[•\-]\s+/gm, '');                      // list markers
+  // Limpiar puntuación duplicada y espacios
+  return t.replace(/[\s.,;:]+$/, '').replace(/\s{2,}/g, ' ').trim();
 }
 
-// Video de cierre según el modo de voz:
-//  - ttsProvider='edge'   → Edge TTS (voz de Salomé) → "Declaracion de victoria salome"
-//  - ttsProvider='cloned' → Voz clonada (Gradium/FreeAI) → "Declaración de victoria"
+// Video de cierre siempre es guacamaya_habla3
 function closingVideoName(ttsProvider = null) {
-  // Si nos pasan el proveedor explícito (modo cascade), lo usamos directamente.
-  if (ttsProvider === 'edge')   return 'Declaracion de victoria salome';
-  if (ttsProvider === 'cloned') return 'Declaración de victoria';
-  // Fallback: leer la variable de entorno (compatibilidad con modos true/false)
-  return process.env.USE_FREE_TTS === 'true' ? 'Declaracion de victoria salome' : 'Declaración de victoria';
+  return 'guacamaya_habla3';
 }
 
 // Lee la duración REAL de un archivo WAV parseando su cabecera (RIFF).
@@ -111,6 +81,12 @@ function esOracionFuerte(texto) {
   return STRONG_KEYWORDS.test(texto || '');
 }
 
+
+// Quita la frase de cierre del texto TTS (la pronounce el video de victoria)
+const CIERRE_REGEX = /[,.]?\s*En el nombre de Jesús,?\s*[Aá]m[eé]n\.?\s*$/i;
+function quitarCierre(texto) {
+  return (texto || '').replace(CIERRE_REGEX, '').trim();
+}
 
 // ── Detector de petición de oración en chat ───────────────────────────────────
 const PRAYER_REGEX = /^\/?(oraci[oó]n|ora\b|oro\s+por|intercede\s+por|pido|reza|por\s+favor\s+or[ae](?:ci[oó]n)?\s+por|petición|peticion)/i;
@@ -242,7 +218,7 @@ export class PrayerEngine {
   }
 
   triggerGeneric(tema = null) {
-    tema = tema || "bendición para todas las familias que están viendo";
+    tema = tema || "un saludo a todos los estudiantes y un consejo de buen comportamiento en el aula";
     this.queue.push({ username: null, peticion: null, tipo: 'generic', tema });
     if (!this.isProcessing) this._processNext();
   }
@@ -328,26 +304,23 @@ export class PrayerEngine {
       try {
         let motivo = "";
         if (tipo === 'petition') {
-           motivo = username ? `el usuario ${username} y su petición: ${peticion || 'por su vida'}` : peticion;
+           motivo = username ? `el estudiante ${username} tiene esta consulta: ${peticion || 'sobre la convivencia'}` : peticion;
         } else {
            motivo = tema;
         }
 
         textoOracion = await generarOracion(motivo);
         if (!textoOracion) throw new Error('IA devolvió texto vacío');
-        console.log(`📝 Oración generada:\n${textoOracion}\n`);
+        console.log(`📝 Respuesta generada:\n${textoOracion}\n`);
       } catch (err) {
         console.error('⚠️ IA falló, usando respaldo:', err.message);
         textoOracion = username
-          ? `Padre celestial, hoy me presento delante de ti para pedirte especialmente por la vida de ${username}. Tú conoces las profundidades de su corazón, sus angustias y sus más grandes necesidades. Te ruego que lo llenes de tu infinita paz, que derrames sobre su casa abundantes bendiciones y que tu Espíritu Santo lo guíe en cada paso que dé de ahora en adelante.`
-          : `Padre celestial, te damos gracias por este maravilloso tiempo de comunión. Te ruego que bendigas grandemente a todos los que nos acompañan en esta transmisión el día de hoy. Guarda sus hogares de todo peligro, cubre a sus familias bajo tu manto protector y dales la sabiduría que necesitan para afrontar sus batallas diarias con valentía y fe inquebrantable.`;
+          ? `Hola ${username}, gracias por preguntar. Recuerda que el respeto mutuo y escuchar a los demás es la base para resolver cualquier conflicto en el colegio. Siempre busca el diálogo antes que nada.`
+          : `Un saludo a todos los estudiantes que nos ven. Recuerden que un aula limpia y ordenada demuestra respeto por nosotros mismos y por nuestros compañeros. Sigamos construyendo una mejor convivencia cada día.`;
       }
 
-      // Normalizar el cierre: garantiza que el audio termine SIEMPRE con
-      // "En el nombre de Jesús, amén y amén" (la IA a veces omite el "y amén").
-      // El cierre "En el nombre de Jesús..." lo pronuncia el video de victoria:
-      // se elimina del texto TTS para que la voz no repita la frase.
-      textoOracion = quitarCierre(textoOracion);
+      // Limpiar texto de espacios y puntuación extra
+      textoOracion = limpiarTexto(textoOracion);
     }
 
     const fileName = `tts_prayer_${crypto.randomBytes(4).toString('hex')}.wav`;

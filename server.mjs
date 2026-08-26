@@ -67,15 +67,55 @@ setInterval(() => {
   }
 }, 5 * 60_000);
 
-// ─── Anti-Spam: Filtro de palabras prohibidas ────────────────────────────────
-const BAD_WORDS = /\b(mierda|puta|puto|coño|verga|culo|marica|hijueputa|hp|gonorrea|malparido|idiota|estupido|imbécil|imbecil|pendejo|pelotudo|cabrón|cabron|chingar|chingada|pene|vagina|sexo|pornografía|pornografia|xxx|fornicar|zorra|bastardo|maldito|maldita|pinche|culero|maricón|maricon|travesti|joderr|joder|polla|follar|coger|teta|culo|ano|put[ao]s?)\b/i;
+// ─── Anti-Spam: Filtro de palabras prohibidas (cargado desde archivo) ───────
+const BAD_WORDS_FILE = path.join(__dirname, 'palabras_prohibidas.txt');
+
+function cargarPalabrasProhibidas() {
+  try {
+    const raw = fs.readFileSync(BAD_WORDS_FILE, 'utf-8');
+    const palabras = raw
+      .split(/\r?\n/)
+      .map(l => l.trim())
+      .filter(l => l.length > 0);
+    const escaped = palabras.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    return new RegExp(`\\b(${escaped.join('|')})\\b`, 'i');
+  } catch (e) {
+    console.warn('[filtro] No se pudo cargar palabras_prohibidas.txt:', e.message);
+    // Regex vacía que nunca da match
+    return /(?!)/;
+  }
+}
+
+let BAD_WORDS = cargarPalabrasProhibidas();
+console.log(`🚫 Filtro cargado: ${BAD_WORDS.source.split('|').length} término(s) bloqueado(s).`);
+
+// Recarga automática cuando se guarda el archivo (sin reiniciar el servidor)
+fs.watchFile(BAD_WORDS_FILE, { interval: 3000 }, () => {
+  BAD_WORDS = cargarPalabrasProhibidas();
+  console.log(`🔄 palabras_prohibidas.txt actualizado. Términos: ${BAD_WORDS.source.split('|').length}`);
+});
 
 function containsBadWords(text) {
   return BAD_WORDS.test(text);
 }
 
 // ─── Anti-Spam: Validar token Cloudflare Turnstile ──────────────────────────
+// Las IPs locales (LAN / loopback) se saltan la validación de Cloudflare:
+// Turnstile rechaza dominios no registrados (error 110200) y en producción
+// la clave está ligada al dominio público, no a IPs privadas.
+function isLocalIP(ip) {
+  if (!ip) return true;
+  const s = ip.replace(/^::ffff:/, ''); // normalizar IPv4-mapped
+  return s === '127.0.0.1' || s === '::1' ||
+    /^10\./.test(s) ||
+    /^192\.168\./.test(s) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(s);
+}
+
 function validateTurnstile(token, ip) {
+  // Bypass para red local
+  if (isLocalIP(ip)) return Promise.resolve(true);
+
   return new Promise((resolve) => {
     const body = JSON.stringify({ secret: TURNSTILE_SECRET, response: token, remoteip: ip });
     const options = {
@@ -233,7 +273,7 @@ function enqueueReaction(task) {
 /* ─── Lógica de Regalos y Reacciones ──────────────────────────── */
 async function procesarRegalo(nivelRegalo, username, repeatCount = 1, image = '') {
   let texto = '';
-  const animation = 'saludo'; // TODOS los regalos → saludo.mp4 (se conservan textos y prioridad por zona)
+  const animation = 'guacamaya_viene'; // TODOS los regalos → guacamaya_viene.mp4
 
   const timesTxt = repeatCount > 1 ? `, ${repeatCount} veces` : '';
 
@@ -271,8 +311,8 @@ const httpServer = http.createServer(async (req, res) => {
   const urlBase = req.url.split('?')[0];
 
   if (urlBase === '/' || urlBase === '/player') {
-    const htmlPath = path.join(__dirname, 'prayer-player.html');
-    if (!fs.existsSync(htmlPath)) { res.writeHead(404); res.end('prayer-player.html no encontrado'); return; }
+    const htmlPath = path.join(__dirname, 'guacamayas-player.html');
+    if (!fs.existsSync(htmlPath)) { res.writeHead(404); res.end('guacamayas-player.html no encontrado'); return; }
     // Inyectar el Site Key de Turnstile para que el frontend lo use al renderizar el captcha
     const html = fs.readFileSync(htmlPath, 'utf-8')
       .replace('__TURNSTILE_SITE_KEY__', TURNSTILE_SITE_KEY);
@@ -282,8 +322,8 @@ const httpServer = http.createServer(async (req, res) => {
   }
   
   if (urlBase === '/admin') {
-    const htmlPath = path.join(__dirname, 'admin_mama.html');
-    if (!fs.existsSync(htmlPath)) { res.writeHead(404); res.end('admin_mama.html no encontrado'); return; }
+    const htmlPath = path.join(__dirname, 'admin_guacamayas.html');
+    if (!fs.existsSync(htmlPath)) { res.writeHead(404); res.end('admin_guacamayas.html no encontrado'); return; }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(fs.readFileSync(htmlPath));
     return;
@@ -309,9 +349,26 @@ const httpServer = http.createServer(async (req, res) => {
     }
   }
 
+  // Sonidos MP3 de la carpeta /sonidos
+  if (req.url.startsWith('/sonidos/') && req.url.endsWith('.mp3')) {
+    const fileName = decodeURIComponent(req.url.slice(1)); // quita el /
+    const filePath = path.join(__dirname, fileName);
+    if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Sonido no encontrado'); return; }
+    const stat = fs.statSync(filePath);
+    res.writeHead(200, {
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': stat.size,
+      'Accept-Ranges': 'bytes',
+      'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'public, max-age=3600',
+    });
+    fs.createReadStream(filePath).pipe(res);
+    return;
+  }
+
   // Videos MP4 separados
-  if (req.url.endsWith('.mp4')) {
-    const videoName = decodeURIComponent(req.url.split('?')[0].slice(1));
+  if (urlBase.endsWith('.mp4')) {
+    const videoName = decodeURIComponent(urlBase.slice(1));
     const filePath = path.join(__dirname, videoName);
     if (!fs.existsSync(filePath)) { res.writeHead(404); res.end('Video no encontrado'); return; }
     const stat = fs.statSync(filePath);
@@ -481,9 +538,77 @@ const httpServer = http.createServer(async (req, res) => {
 
         // ✅ Todo OK: encolar la petición de oración
         prayerEngine.receiveChatMessage(username, `/oracion ${peticion}`);
+        broadcast({ type: 'prayer_queued' });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, username, peticion }));
       } catch (e) { res.writeHead(400); res.end('Invalid JSON'); }
+    });
+    return;
+  }
+
+  // ── Admin: Login (valida contraseña desde .env) ──────────────────────────────
+  if (req.url === '/api/admin/login' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      try {
+        const { password } = JSON.parse(body || '{}');
+        const correctPassword = process.env.ADMIN_PASSWORD || 'admin';
+        if (password === correctPassword) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } else {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Contraseña incorrecta.' }));
+        }
+      } catch (e) { res.writeHead(400); res.end('Invalid JSON'); }
+    });
+    return;
+  }
+
+  // ── Admin: Actualizar Manual de Convivencia desde URL ─────────────────────────
+  if (req.url === '/api/admin/update-manual' && req.method === 'POST') {
+    // Verificar contraseña via header Authorization
+    const adminPwd = process.env.ADMIN_PASSWORD || 'admin';
+    const authHeader = req.headers['authorization'] || '';
+    if (authHeader !== `Bearer ${adminPwd}`) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: 'No autorizado.' }));
+      return;
+    }
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { url: pdfUrl } = JSON.parse(body || '{}');
+        if (!pdfUrl || !pdfUrl.trim()) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'Debes proporcionar una URL del PDF.' }));
+          return;
+        }
+        // Iniciar procesamiento sin bloquear la respuesta HTTP
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, message: 'Procesando PDF... sigue el progreso en la consola del servidor.' }));
+
+        // Ejecutar en background
+        const { createRequire } = await import('module');
+        const req2 = createRequire(import.meta.url);
+        const { extractPdf } = req2('./extract_pdf.js');
+        try {
+          broadcast({ type: 'admin_log', level: 'info', msg: `🔄 Actualizando Manual desde: ${pdfUrl}` });
+          const result = await extractPdf(pdfUrl.trim(), {
+            onLog: (msg) => {
+              console.log('[update-manual]', msg);
+              broadcast({ type: 'admin_log', level: 'ok', msg });
+            }
+          });
+          broadcast({ type: 'admin_log', level: 'ok', msg: `✅ Manual actualizado: ${result.chunks} chunks generados. El RAG ya está activo con el nuevo manual.` });
+          console.log('[update-manual] ✅ Completado. El RAG recargará automáticamente en los próximos segundos.');
+        } catch (err) {
+          console.error('[update-manual] Error:', err.message);
+          broadcast({ type: 'admin_log', level: 'error', msg: `❌ Error al procesar PDF: ${err.message}` });
+        }
+      } catch (e) { console.error('[update-manual]', e.message); }
     });
     return;
   }
@@ -498,6 +623,7 @@ const httpServer = http.createServer(async (req, res) => {
         const username = (data.username || 'Admin').trim().slice(0, 30);
         const peticion = (data.peticion || '').trim().slice(0, 200);
         prayerEngine.receiveChatMessage(username, `/oracion ${peticion}`);
+        broadcast({ type: 'prayer_queued' });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, username, peticion }));
       } catch (e) { res.writeHead(400); res.end('Invalid JSON'); }
@@ -542,7 +668,10 @@ const httpServer = http.createServer(async (req, res) => {
     return;
   }
 
+
+
   if (urlBase === '/api/stream-audio' && req.method === 'GET') {
+
     const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
     const audioPath = parsedUrl.searchParams.get('path');
     if (!audioPath || !fs.existsSync(audioPath)) {
@@ -801,10 +930,10 @@ if (TIKTOK_USERNAME && TIKTOK_USERNAME !== 'tu_usuario_de_tiktok') {
         const filePath = path.join(__dirname, fileName);
         try {
           await sintetizarVoz(texto, filePath);
-          broadcast({ type: 'puppy_event', animation: 'saludo', url: `/${fileName}` });
+          broadcast({ type: 'puppy_event', animation: 'guacamaya_viene', url: `/${fileName}` });
           setTimeout(() => { try { fs.unlinkSync(filePath); } catch (_) { } }, 60000);
         } catch (err) {
-          broadcast({ type: 'puppy_event', animation: 'saludo' });
+          broadcast({ type: 'puppy_event', animation: 'guacamaya_viene' });
         }
       });
     }
@@ -826,10 +955,10 @@ if (TIKTOK_USERNAME && TIKTOK_USERNAME !== 'tu_usuario_de_tiktok') {
       const filePath = path.join(__dirname, fileName);
       try {
         await sintetizarVoz(texto, filePath);
-        broadcast({ type: 'puppy_event', animation: 'saludo', url: `/${fileName}` });
+        broadcast({ type: 'puppy_event', animation: 'guacamaya_viene', url: `/${fileName}` });
         setTimeout(() => { try { fs.unlinkSync(filePath); } catch (_) { } }, 60000);
       } catch (err) {
-        broadcast({ type: 'puppy_event', animation: 'saludo' });
+        broadcast({ type: 'puppy_event', animation: 'guacamaya_viene' });
       }
     });
   });
@@ -860,10 +989,10 @@ if (TIKTOK_USERNAME && TIKTOK_USERNAME !== 'tu_usuario_de_tiktok') {
       const filePath = path.join(__dirname, fileName);
       try {
         await sintetizarVoz(texto, filePath);
-        broadcast({ type: 'puppy_event', animation: 'saludo', url: `/${fileName}` });
+        broadcast({ type: 'puppy_event', animation: 'guacamaya_viene', url: `/${fileName}` });
         setTimeout(() => { try { fs.unlinkSync(filePath); } catch (_) { } }, 60000);
       } catch (err) {
-        broadcast({ type: 'puppy_event', animation: 'saludo' });
+        broadcast({ type: 'puppy_event', animation: 'guacamaya_viene' });
       }
     });
   });
@@ -874,8 +1003,17 @@ if (TIKTOK_USERNAME && TIKTOK_USERNAME !== 'tu_usuario_de_tiktok') {
     const avatar = getAvatarUrl(data);
 
     // Oraciones
+    // Filtro de palabras prohibidas: ignorar mensajes irrespetuosos de TikTok
+    if (containsBadWords(msg) || containsBadWords(username)) {
+      console.log(`🚫 Mensaje bloqueado de @${username}: contiene términos no permitidos.`);
+      return;
+    }
+
     const handled = prayerEngine.receiveChatMessage(username, msg, avatar);
-    if (handled) return;
+    if (handled) {
+      broadcast({ type: 'prayer_queued' });
+      return;
+    }
 
     // Saludos
     const regexSaludo = /\b(hola|holis|buenas|saludos|hi|hello|bendiciones)\b/i;
@@ -889,10 +1027,10 @@ if (TIKTOK_USERNAME && TIKTOK_USERNAME !== 'tu_usuario_de_tiktok') {
         const filePath = path.join(__dirname, fileName);
         try {
           await sintetizarVoz(texto, filePath);
-          broadcast({ type: 'puppy_event', animation: 'Asentir suavemente', url: `/${fileName}` });
+          broadcast({ type: 'puppy_event', animation: 'guacamaya_viene', url: `/${fileName}` });
           setTimeout(() => { try { fs.unlinkSync(filePath); } catch (_) { } }, 60000);
         } catch (err) {
-          broadcast({ type: 'puppy_event', animation: 'Asentir suavemente' });
+          broadcast({ type: 'puppy_event', animation: 'guacamaya_viene' });
         }
       });
     }
@@ -907,7 +1045,7 @@ if (TIKTOK_USERNAME && TIKTOK_USERNAME !== 'tu_usuario_de_tiktok') {
       memberCount++;
       const username = getUniqueId(data) || 'Alguien';
       if (memberCount % 10 === 0) {
-        enqueueReaction(() => { broadcast({ type: 'puppy_event', animation: 'saludo' }); });
+        enqueueReaction(() => { broadcast({ type: 'puppy_event', animation: 'guacamayas_default1' }); });
       }
     }
   });

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>🦜 Guacamayas Live — Panel de Control</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1117; font-family: 'Inter', sans-serif; color: #e2e8f0; min-height: 100vh; padding: 28px 16px; }
+    h1 { text-align: center; font-size: 1.8rem; background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+    .subtitle { text-align: center; color: #64748b; font-size: 0.88rem; margin-bottom: 24px; }
+    .status-bar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px; font-size: 0.85rem; color: #94a3b8; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: background 0.3s; }
+    .dot.online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    .prayer-status-bar { max-width: 960px; margin: 0 auto 20px; background: rgba(129,140,248,0.08); border: 1px solid rgba(129,140,248,0.2); border-radius: 12px; padding: 12px 20px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; font-size: 0.82rem; }
+    .pstat { display: flex; flex-direction: column; gap: 2px; }
+    .pstat-label { color: #64748b; font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; }
+    .pstat-val { color: #c084fc; font-weight: 700; font-size: 1rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; max-width: 960px; margin: 0 auto 24px; }
+    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px; transition: transform 0.15s; }
+    .card:hover { transform: translateY(-2px); }
+    .card-emoji { font-size: 2rem; }
+    .card-title { font-size: 1rem; font-weight: 700; }
+    .card-desc { font-size: 0.8rem; color: #94a3b8; line-height: 1.5; }
+    .btn { display: block; width: 100%; padding: 10px; border: none; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.15); }
+    .btn:active { transform: translateY(0); }
+    .btn-purple { background: rgba(129,140,248,0.25); color: #c7d2fe; }
+    .btn-violet { background: rgba(192,132,252,0.25); color: #e9d5ff; }
+    .btn-orange { background: rgba(251,146,60,0.25); color: #fed7aa; }
+    .btn-amber { background: rgba(245,158,11,0.25); color: #fde68a; }
+    .btn-sky { background: rgba(56,189,248,0.25); color: #bae6fd; }
+    .btn-green { background: rgba(34,197,94,0.25); color: #bbf7d0; }
+    .btn-red { background: rgba(239,68,68,0.25); color: #fca5a5; }
+    .input-text { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 12px; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 0.82rem; outline: none; transition: border-color 0.2s; }
+    .input-text:focus { border-color: rgba(192,132,252,0.5); }
+    textarea.input-text { resize: vertical; min-height: 60px; }
+    .username-bar { max-width: 960px; margin: 0 auto 20px; display: flex; gap: 10px; align-items: center; }
+    .username-bar label { font-size: 0.88rem; color: #94a3b8; white-space: nowrap; }
+    .username-bar input { flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 0.88rem; outline: none; }
+    .username-bar input:focus { border-color: rgba(192,132,252,0.4); }
+    .anim-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .anim-btn { padding: 5px 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); border-radius: 8px; color: #cbd5e1; font-size: 0.75rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .anim-btn:hover { background: rgba(192,132,252,0.2); border-color: rgba(192,132,252,0.5); color: #e9d5ff; }
+    label.field-label { font-size: 0.78rem; color: #e9d5ff; margin-bottom: 3px; display: block; }
+    .log-box { max-width: 960px; margin: 0 auto; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 16px; min-height: 100px; max-height: 200px; overflow-y: auto; font-size: 0.8rem; font-family: 'Courier New', monospace; color: #94a3b8; }
+    .log-line { margin-bottom: 3px; }
+    .log-line.ok { color: #4ade80; }
+    .log-line.warn { color: #fbbf24; }
+    .log-line.error { color: #f87171; }
+    .log-line.prayer { color: #c084fc; }
+    .qr-box { background: #fff; padding: 8px; border-radius: 10px; width: 128px; height: 128px; display: none; justify-content: center; align-items: center; flex-shrink: 0; }
+    .net-link { display: block; color: #7dd3fc; font-size: 0.8rem; word-break: break-all; margin-bottom: 2px; }
+    .net-link.admin { color: #a5b4fc; }
+    /* ─── Login Overlay ─────────────────────────────────────────────── */
+    #login-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #0d1117;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px;
+    }
+    #login-overlay h2 { font-size: 1.5rem; background: linear-gradient(135deg, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    #login-overlay input { width: 260px; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color: #e2e8f0; font-size: 1rem; outline: none; text-align: center; }
+    #login-overlay input:focus { border-color: rgba(192,132,252,0.5); }
+    #login-overlay button { width: 260px; padding: 10px; border: none; border-radius: 10px; background: linear-gradient(135deg,#818cf8,#c084fc); color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; transition: filter 0.2s; }
+    #login-overlay button:hover { filter: brightness(1.15); }
+    #login-error { color: #f87171; font-size: 0.85rem; min-height: 1.2em; }
+    .logout-btn { position: fixed; top: 14px; right: 16px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; font-size: 0.75rem; padding: 5px 12px; border-radius: 8px; cursor: pointer; z-index: 100; }
+    .logout-btn:hover { background: rgba(239,68,68,0.3); }
+  </style>
+</head>
+<body>
+  <!-- ─── Login Overlay ─── -->
+  <div id="login-overlay">
+    <div style="font-size:3rem;">🦜</div>
+    <h2>Panel de Administración</h2>
+    <p style="color:#64748b; font-size:0.85rem;">Ingresa la contraseña para continuar</p>
+    <input type="password" id="login-pwd" placeholder="Contraseña" onkeydown="if(event.key==='Enter') doLogin()">
+    <button onclick="doLogin()">Entrar</button>
+    <span id="login-error"></span>
+  </div>
+  <button class="logout-btn" id="logout-btn" style="display:none" onclick="doLogout()">🔒 Salir</button>
+  <h1>🦜 Guacamayas Sabias — Panel</h1>
+  <p class="subtitle">Panel de control del live educativo sobre convivencia escolar</p>
+
+  <div class="status-bar">
+    <div class="dot" id="dot"></div>
+    <span id="statusTxt">Conectando al servidor...</span>
+  </div>
+
+  <div class="prayer-status-bar" id="prayerStatusBar">
+    <div class="pstat"><span class="pstat-label">En cola</span><span class="pstat-val" id="ps-queue">—</span></div>
+    <div class="pstat"><span class="pstat-label">Activo</span><span class="pstat-val" id="ps-active">—</span></div>
+    <div class="pstat"><span class="pstat-label">Consultas hoy</span><span class="pstat-val" id="ps-total">—</span></div>
+    <div class="pstat"><span class="pstat-label">Estado</span><span class="pstat-val" id="ps-state">—</span></div>
+  </div>
+
+  <div class="username-bar">
+    <label>👤 Nombre del usuario:</label>
+    <input type="text" id="username" value="Estudiante123" placeholder="Nombre usuario TikTok">
+  </div>
+
+  <div class="grid">
+    <!-- ACTUALIZAR MANUAL DE CONVIVENCIA -->
+    <div class="card" style="border-color: rgba(56,189,248,0.5);">
+      <div class="card-emoji">📚</div>
+      <div class="card-title">Actualizar Manual de Convivencia</div>
+      <div class="card-desc">Pega la URL del nuevo PDF del Manual de Convivencia y presiona el botón para procesarlo y actualizar el sistema de respuestas.</div>
+      <label class="field-label">URL del PDF:</label>
+      <input type="url" class="input-text" id="manualUrl" placeholder="https://ejemplo.com/manual-2025.pdf">
+      <button class="btn btn-sky" onclick="actualizarManual()">📥 Descargar y Procesar PDF</button>
+      <div id="manualStatus" style="font-size:0.78rem; color:#94a3b8; margin-top:4px; min-height:1.2em;"></div>
+    </div>
+    <div class="card" style="border-color: rgba(192,132,252,0.4);">
+      <div class="card-emoji">🦜</div>
+      <div class="card-title">Simular Consulta</div>
+      <div class="card-desc">Envía una pregunta de convivencia a las guacamayas (igual que desde el chat del live).</div>
+      <label class="field-label">Pregunta:</label>
+      <textarea class="input-text" id="peticion" rows="2" placeholder="¿Cómo resolver un conflicto entre compañeros?">¿Cómo podemos mejorar el respeto en el salón?</textarea>
+      <button class="btn btn-violet" onclick="simularOracion()">🦜 Enviar Consulta</button>
+      <button class="btn btn-red" onclick="limpiarCola()">🗑️ Limpiar Cola</button>
+    </div>
+
+    <!-- SISTEMA DE SONIDO AUTOMÁTICO -->
+    <div class="card" style="border-color: rgba(56,189,248,0.4);">
+      <div class="card-emoji">🔊</div>
+      <div class="card-title">Sistema de Sonido</div>
+      <div class="card-desc">Los sonidos se activan automáticamente según el video que se reproduce.</div>
+      <div style="margin-top:12px; font-size:0.8rem; color:#94a3b8; line-height:1.7;">
+        🟢 <b style="color:#f1f5f9;">sonido_fondo.mp3</b> — Siempre activo en loop<br>
+        🎵 <b style="color:#f1f5f9;">guacayamas_default2.mp3</b> — Default 2 y 4<br>
+        🦜 <b style="color:#f1f5f9;">guacamaya_vuela2.mp3</b> — Va y Viene
+      </div>
+    </div>
+
+    <!-- VOZ TTS -->
+    <div class="card" style="border-color: rgba(192,132,252,0.5);">
+      <div class="card-emoji">🎙️</div>
+      <div class="card-title">Voz de las Guacamayas</div>
+      <div class="card-desc">Elige la voz femenina en español que usan las guacamayas para responder.</div>
+      <label class="field-label">Voz activa:</label>
+      <select id="ttsVoiceSelect" class="input-text" onchange="saveVoice()">
+        <optgroup label="🇨🇴 Colombia">
+          <option value="es-CO-SalomeNeural">Salomé — CO (recomendada)</option>
+        </optgroup>
+        <optgroup label="🇪🇸 España">
+          <option value="es-ES-ElviraNeural">Elvira — ES</option>
+          <option value="es-ES-XimenaNeural">Ximena — ES</option>
+        </optgroup>
+        <optgroup label="🇲🇽 México">
+          <option value="es-MX-DaliaNeural">Dalia — MX</option>
+        </optgroup>
+        <optgroup label="🇦🇷 Argentina">
+          <option value="es-AR-ElenaNeural">Elena — AR</option>
+        </optgroup>
+        <optgroup label="🇺🇸 US Español">
+          <option value="es-US-PalomaNeural">Paloma — US</option>
+        </optgroup>
+      </select>
+      <div id="voiceSaveMsg" style="font-size:0.75rem; color:#4ade80; min-height:18px;"></div>
+    </div>
+
+    <!-- QR / ABRIR EN CELULAR -->
+    <div class="card" style="border-color: rgba(56,189,248,0.4);">
+      <div class="card-emoji">📱</div>
+      <div class="card-title">Abrir en el Celular</div>
+      <div class="card-desc">Escanea el QR o abre la URL desde cualquier dispositivo en la misma red WiFi.</div>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <div class="qr-box" id="qrBox"></div>
+        <div style="flex:1; min-width:190px;">
+          <div id="netLinks" style="font-size:0.8rem;"></div>
+          <div id="netNote" style="font-size:0.72rem; color:#64748b; margin-top:4px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CÓMO USAR EN EL CHAT -->
+    <div class="card" style="border-color: rgba(192,132,252,0.4);">
+      <div class="card-emoji">💬</div>
+      <div class="card-title">Consultas por el Chat TikTok</div>
+      <div class="card-desc">Los estudiantes pueden enviar preguntas directamente desde el live con estos comandos:</div>
+      <div style="background:rgba(0,0,0,0.3); border-radius:8px; padding:10px 12px; font-size:0.8rem; line-height:1.8; font-family:'Courier New', monospace; color:#e9d5ff;">
+        <div>💬 <b>/pregunta ¿cómo mejorar el respeto en el aula?</b></div>
+        <div>💬 <b>/consulta sobre el manual de convivencia</b></div>
+        <div style="color:#94a3b8; font-family:'Inter',sans-serif; margin-top:6px;">También acepta: <b>/pregunto…</b>, <b>/duda…</b>, <b>/ayuda…</b></div>
+      </div>
+      <div class="card-desc" style="margin-top:8px;">Pruébalo con el simulador de la tarjeta "Simular Consulta" de arriba.</div>
+    </div>
+
+    <!-- OVERLAY / CHAT WEB -->
+    <div class="card" style="border-color: rgba(250,204,21,0.4);">
+      <div class="card-emoji">📺</div>
+      <div class="card-title">Overlay en Pantalla</div>
+      <div class="card-desc">Muestra dinámicamente en el reproductor la instrucción de cómo hacer una consulta.</div>
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+        <label class="field-label" style="margin:0;">Mostrar overlay:</label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <input type="checkbox" id="overlayVisible" onchange="toggleOverlay()" style="width:18px; height:18px; cursor:pointer;">
+          <span id="overlayVisibleLabel" style="color:#94a3b8;">Oculto</span>
+        </label>
+      </div>
+      <label class="field-label">Texto (arriba al centro):</label>
+      <input type="text" id="overlayInstruction" class="input-text"
+             value="💬 Escribe tu pregunta de convivencia en el chat"
+             placeholder="Instrucción para el chat..."
+             oninput="saveOverlay()">
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.07);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+          <span style="font-size:1.2em;">💬</span>
+          <label class="field-label" style="margin:0; color:#c4b5fd; font-weight:700;">Chat Interactivo Web</label>
+        </div>
+        <div class="card-desc" style="margin-bottom:10px;">Muestra en la web del player un chat para que los visitantes envíen preguntas directamente, sin necesitar TikTok.</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label class="field-label" style="margin:0;">Mostrar chat:</label>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="chatVisible" onchange="toggleChat()" style="width:18px; height:18px; cursor:pointer; accent-color:#a855f7;">
+            <span id="chatVisibleLabel" style="color:#94a3b8;">Oculto</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- ANIMACIONES -->
+    <div class="card" style="border-color: rgba(129,140,248,0.4);">
+      <div class="card-emoji">🎭</div>
+      <div class="card-title">Animaciones Guacamayas</div>
+      <div class="card-desc">Activa manualmente cualquier animación de las guacamayas.</div>
+
+      <label class="field-label">🦜 Idle / Reposo</label>
+      <div class="anim-grid">
+        <button class="anim-btn" onclick="playAnim('guacamayas_default1')">Default 1</button>
+        <button class="anim-btn" onclick="playAnim('guacamayas_default2')">Default 2</button>
+        <button class="anim-btn" onclick="playAnim('guacamayas_default3')">Default 3</button>
+        <button class="anim-btn" onclick="playAnim('guacamayas_default4')">Default 4</button>
+      </div>
+
+      <label class="field-label">🗣️ Habla / Respuesta</label>
+      <div class="anim-grid">
+        <button class="anim-btn" onclick="playAnim('guacamaya_viene')">Viene</button>
+        <button class="anim-btn" onclick="playAnim('guacamaya_habla1')">Habla 1</button>
+        <button class="anim-btn" onclick="playAnim('guacamaya_habla2')">Habla 2</button>
+        <button class="anim-btn" onclick="playAnim('guacamaya_habla3')">Habla 3 (cierre)</button>
+        <button class="anim-btn" onclick="playAnim('guacamaya_va')">Va (regreso)</button>
+        <button class="anim-btn" onclick="playAnim('guacamaya_pensando')">Pensando</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="log-box" id="logBox">
+    <div class="log-line">— Panel Guacamayas Sabias listo —</div>
+  </div>
+
+  <!-- Librería QR (opcional: si no carga, se muestra solo el link) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    const HOST = window.location.hostname;
+    const SERVER = '';
+    let ws, online = false;
+
+    function conectarWS() {
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host || 'localhost:3002';
+        ws = new WebSocket(`${protocol}//${host}`);
+        ws.onopen = () => {
+          online = true;
+          document.getElementById('dot').classList.add('online');
+          document.getElementById('statusTxt').textContent = '🟢 Servidor conectado';
+          log('Conectado al servidor de Guacamayas', 'ok');
+          actualizarEstadoOracion();
+        };
+        ws.onclose = () => {
+          online = false;
+          document.getElementById('dot').classList.remove('online');
+          document.getElementById('statusTxt').textContent = '🔴 Sin conexión — reconectando...';
+          setTimeout(conectarWS, 3000);
+        };
+        ws.onmessage = (e) => {
+          try {
+            const d = JSON.parse(e.data);
+            if (d.type === 'prayer_start')     log(`🙏 Oración iniciada: ${d.peticion || ''}`, 'prayer');
+            if (d.type === 'prayer_done')      log(`✅ Oración completada`, 'ok');
+            if (d.type === 'prayer_queued')    log(`📬 Consulta encolada`, 'ok');
+            if (d.type === 'prayer_animation') log(`🎭 Animación: ${d.animation}`, 'prayer');
+            if (d.type === 'puppy_event')      log(`🎁 Evento: ${d.video || 'saludo'}`, 'ok');
+            if (d.type === 'admin_log') {
+              log(d.msg, d.level === 'error' ? 'error' : d.level === 'info' ? 'warn' : 'ok');
+              // Actualizar también el estado del manual si es el mensaje final
+              if (d.msg && d.msg.includes('Manual actualizado')) {
+                const statusEl = document.getElementById('manualStatus');
+                if (statusEl) statusEl.textContent = d.msg;
+              }
+            }
+            actualizarEstadoOracion();
+          } catch {}
+        };
+      } catch(e) {
+        setTimeout(conectarWS, 3000);
+      }
+    }
+    conectarWS();
+    setInterval(actualizarEstadoOracion, 5000);
+
+    function log(msg, cls = '') {
+      const box = document.getElementById('logBox');
+      const line = document.createElement('div');
+      line.className = 'log-line ' + cls;
+      const now = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      line.textContent = `[${now}] ${msg}`;
+      box.appendChild(line);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function actualizarEstadoOracion() {
+      try {
+        const resp = await fetch(`${SERVER}/api/prayer-status`);
+        const data = await resp.json();
+        document.getElementById('ps-queue').textContent  = data.queueLength ?? '—';
+        document.getElementById('ps-active').textContent = data.currentPrayer ? `${data.currentPrayer.substring(0,20)}...` : 'Ninguna';
+        document.getElementById('ps-total').textContent  = data.totalPrayers ?? '—';
+        document.getElementById('ps-state').textContent  = data.isGenerating ? '⚙️ Generando' : data.isSpeaking ? '🎤 Orando' : '⏸ En espera';
+      } catch {}
+    }
+
+    async function simularOracion() {
+      const username = document.getElementById('username').value.trim() || 'MijoQuerido';
+      const peticion = document.getElementById('peticion').value.trim() || 'oración general';
+      log(`📤 Simulando petición de @${username}: "${peticion}"...`);
+      try {
+        const resp = await fetch(`${SERVER}/api/admin/prayer-simulate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, peticion })
+        });
+        const data = await resp.json();
+        if (data.success) log(`✅ Petición enviada al motor de oraciones`, 'ok');
+        else log(`❌ Error: ${JSON.stringify(data)}`, 'error');
+      } catch (e) { log(`❌ No se pudo conectar: ${e.message}`, 'error'); }
+    }
+
+    async function limpiarCola() {
+      log(`🗑️ Limpiando cola...`);
+      try {
+        await fetch(`${SERVER}/api/prayer-clear`, { method: 'POST' });
+        log(`✅ Cola limpiada`, 'ok');
+        actualizarEstadoOracion();
+      } catch (e) { log(`❌ Error: ${e.message}`, 'error'); }
+    }
+
+    async function playAnim(id) {
+      log(`🎭 Activando animación: ${id}`);
+      try { await fetch(`${SERVER}/play/${encodeURIComponent(id)}`); } catch (e) {}
+    }
+
+    async function iniciarMusica(tipo) {
+      const sel = document.getElementById(`music-file-${tipo}`);
+      const file = sel ? sel.value : '';
+      try {
+        const res = await fetch('/admin/music', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action: 'start', type: tipo, file })
+        });
+        if (res.ok) log(`🎵 Música iniciada: ${tipo === 'alabanza' ? 'Alabanza' : 'Adoración'}${file ? ' → ' + file : ' (aleatorio)'}`, 'ok');
+      } catch (err) {}
+    }
+
+    async function detenerMusica() {
+      try {
+        const res = await fetch('/admin/music', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action: 'stop' })
+        });
+        if (res.ok) log('⏹️ Música detenida', 'ok');
+      } catch (err) {}
+    }
+
+    async function testPetitionerUI() {
+      const names = ['Carlos', 'Ana', 'Luis', 'Sofia'];
+      const rndName = names[Math.floor(Math.random() * names.length)] + Math.floor(Math.random() * 100);
+      await fetch('/api/admin/prayer-simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: rndName, peticion: 'petición de prueba UI' })
+      });
+    }
+
+    // Función updateChroma removida para Guacamayas.
+
+    /* ─── Conexión desde el celular (LAN + QR) ─────────────────────────── */
+    async function loadNetwork() {
+      try {
+        const resp = await fetch('/api/network');
+        const data = await resp.json();
+        const ips = data.lanIPs || [];
+        const links = document.getElementById('netLinks');
+        const note = document.getElementById('netNote');
+        if (ips.length === 0) {
+          links.innerHTML = '<span style="color:#fbbf24;">⚠️ No se detectó IP de red local.</span>';
+          note.textContent = 'Conecta este PC a la red WiFi y reinicia el servidor.';
+          return;
+        }
+        links.innerHTML = ips.map(ip =>
+          `<a class="net-link" href="http://${ip}:${data.httpPort}/player" target="_blank">📺 http://${ip}:${data.httpPort}/player</a>` +
+          `<a class="net-link admin" href="http://${ip}:${data.httpPort}/admin" target="_blank">🎛️ http://${ip}:${data.httpPort}/admin</a>`
+        ).join('');
+        note.textContent = 'El celular debe estar conectado a la MISMA red WiFi que este PC.';
+        if (typeof QRCode !== 'undefined') {
+          const qrBox = document.getElementById('qrBox');
+          qrBox.style.display = 'flex';
+          qrBox.innerHTML = '';
+          new QRCode(qrBox, { text: `http://${ips[0]}:${data.httpPort}/player`, width: 112, height: 112 });
+        }
+      } catch (e) {}
+    }
+
+    /* ─── Listas de música (subir / eliminar / fuente) ─────────────────── */
+    async function loadPlaylists() {
+      try {
+        const res = await fetch('/api/playlists');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.source) {
+          const radio = document.querySelector(`input[name="musicSource"][value="${data.source}"]`);
+          if (radio) radio.checked = true;
+        }
+        const fillSelect = (type, files) => {
+          const sel = document.getElementById(`music-file-${type}`);
+          if (sel) {
+            sel.innerHTML = '<option value="">🎲 Aleatorio</option>' +
+              (files || []).map(f => `<option value="${f}">${f}</option>`).join('');
+          }
+        };
+        fillSelect('alabanza', data.alabanza);
+        fillSelect('adoracion', data.adoracion);
+        const renderList = (type, files) => {
+          const div = document.getElementById(`list-${type}`);
+          if (!files || files.length === 0) { div.innerHTML = '<i>No hay archivos subidos.</i>'; return; }
+          div.innerHTML = files.map(f =>
+            `<div style="display:flex; justify-content:space-between; gap:6px; margin-bottom:4px; align-items:center;">` +
+            `<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🎵 ${f}</span>` +
+            `<button onclick="deleteMusic('${type}', '${f.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#ef4444; cursor:pointer; flex-shrink:0;">❌</button>` +
+            `</div>`).join('');
+        };
+        renderList('alabanza', data.alabanza);
+        renderList('adoracion', data.adoracion);
+      } catch (e) {}
+    }
+
+    async function uploadMusic(type) {
+      const input = document.getElementById(`file-${type}`);
+      if (!input.files || input.files.length === 0) return;
+      log(`⏳ Subiendo ${input.files.length} archivo(s)...`);
+      for (const file of input.files) {
+        try {
+          const url = `/api/upload-music?type=${type}&name=${encodeURIComponent(file.name)}`;
+          await fetch(url, { method: 'POST', body: file });
+        } catch (e) {
+          log(`❌ Error al subir ${file.name}: ${e.message}`, 'error');
+        }
+      }
+      log(`✅ Archivos subidos`, 'ok');
+      input.value = '';
+      loadPlaylists();
+    }
+
+    async function deleteMusic(type, name) {
+      if (!confirm(`¿Eliminar ${name}?`)) return;
+      try {
+        await fetch('/api/delete-music', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, name })
+        });
+        log(`🗑️ ${name} eliminado`, 'ok');
+        loadPlaylists();
+      } catch (e) { log(`❌ Error: ${e.message}`, 'error'); }
+    }
+
+    async function saveMusicSource() {
+      const source = (document.querySelector('input[name="musicSource"]:checked') || {}).value || 'default';
+      try {
+        await fetch('/api/playlists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source })
+        });
+        log(`🎵 Fuente de música: ${source === 'custom' ? 'Lista personalizada' : 'Por defecto'}`, 'ok');
+      } catch (e) {}
+    }
+
+    /* ─── Overlay de instrucciones en el reproductor ───────────────────── */
+    function toggleOverlay() {
+      const visible = document.getElementById('overlayVisible').checked;
+      document.getElementById('overlayVisibleLabel').textContent = visible ? 'Visible' : 'Oculto';
+      saveOverlay();
+    }
+
+    function toggleChat() {
+      const chatVisible = document.getElementById('chatVisible').checked;
+      document.getElementById('chatVisibleLabel').textContent = chatVisible ? 'Visible' : 'Oculto';
+      saveOverlay();
+    }
+
+    function saveOverlay() {
+      const visible = document.getElementById('overlayVisible').checked;
+      const instruction = document.getElementById('overlayInstruction').value;
+      const chatVisible = document.getElementById('chatVisible').checked;
+      fetch('/admin/overlay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible, instruction, chatVisible })
+      }).catch(err => console.error(err));
+    }
+
+    async function loadOverlay() {
+      try {
+        const res = await fetch('/api/overlay');
+        const cfg = await res.json();
+        document.getElementById('overlayVisible').checked = !!cfg.visible;
+        document.getElementById('overlayVisibleLabel').textContent = cfg.visible ? 'Visible' : 'Oculto';
+        if (cfg.instruction) document.getElementById('overlayInstruction').value = cfg.instruction;
+        document.getElementById('chatVisible').checked = !!cfg.chatVisible;
+        document.getElementById('chatVisibleLabel').textContent = cfg.chatVisible ? 'Visible' : 'Oculto';
+      } catch (e) {}
+    }
+
+    /* ─── Voz TTS ─────────────────────────────────────────────────────── */
+    async function loadVoiceConfig() {
+      try {
+        const res = await fetch('/api/get-gift-config');
+        const cfg = await res.json();
+        const sel = document.getElementById('ttsVoiceSelect');
+        if (!sel) return;
+        let voice = cfg.ttsVoice || 'es-CO-SalomeNeural';
+        // Si la voz guardada ya no está en el selector (fue deshabilitada),
+        // volver a la recomendada para no dejar el panel sin selección.
+        const vocesValidas = [...sel.options].map(o => o.value);
+        if (!vocesValidas.includes(voice)) {
+          console.warn(`Voz "${voice}" ya no está disponible, usando es-CO-SalomeNeural`);
+          voice = 'es-CO-SalomeNeural';
+        }
+        sel.value = voice;
+      } catch (e) {}
+    }
+
+    async function saveVoice() {
+      const sel = document.getElementById('ttsVoiceSelect');
+      const voice = sel ? sel.value : 'es-CO-SalomeNeural';
+      const msg = document.getElementById('voiceSaveMsg');
+      try {
+        // Leer config actual para no pisar otros campos
+        const resCfg = await fetch('/api/get-gift-config');
+        const cfg = await resCfg.json();
+        cfg.ttsVoice = voice;
+        const res = await fetch('/api/save-gift-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cfg)
+        });
+        if (res.ok) {
+          if (msg) { msg.textContent = '✅ Voz guardada'; setTimeout(() => { msg.textContent = ''; }, 2500); }
+          log(`🎙️ Voz TTS cambiada: ${voice}`, 'ok');
+        }
+      } catch (e) { log(`❌ Error guardando voz: ${e.message}`, 'error'); }
+    }
+
+    // \u2500\u2500\u2500 Login / Logout \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    let _adminToken = sessionStorage.getItem('adminToken') || '';
+
+    function applyLoginState(loggedIn) {
+      document.getElementById('login-overlay').style.display = loggedIn ? 'none' : 'flex';
+      document.getElementById('logout-btn').style.display = loggedIn ? 'block' : 'none';
+    }
+
+    async function doLogin() {
+      const pwd = document.getElementById('login-pwd').value.trim();
+      const errEl = document.getElementById('login-error');
+      if (!pwd) { errEl.textContent = 'Ingresa la contraseña.'; return; }
+      try {
+        const r = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        const data = await r.json();
+        if (data.success) {
+          _adminToken = pwd;
+          sessionStorage.setItem('adminToken', pwd);
+          errEl.textContent = '';
+          applyLoginState(true);
+        } else {
+          errEl.textContent = data.error || 'Contraseña incorrecta.';
+          document.getElementById('login-pwd').value = '';
+        }
+      } catch (e) {
+        errEl.textContent = 'Error de conexi\u00f3n con el servidor.';
+      }
+    }
+
+    function doLogout() {
+      _adminToken = '';
+      sessionStorage.removeItem('adminToken');
+      applyLoginState(false);
+      document.getElementById('login-pwd').value = '';
+    }
+
+    // Verificar sesi\u00f3n al cargar
+    (async () => {
+      if (_adminToken) {
+        const r = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: _adminToken })
+        }).catch(() => ({ ok: false }));
+        const data = await r.json().catch(() => ({}));
+        applyLoginState(!!data.success);
+        if (!data.success) { _adminToken = ''; sessionStorage.removeItem('adminToken'); }
+      } else {
+        applyLoginState(false);
+      }
+    })();
+
+    // \u2500\u2500\u2500 Actualizar Manual de Convivencia \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    async function actualizarManual() {
+      const url = (document.getElementById('manualUrl').value || '').trim();
+      const statusEl = document.getElementById('manualStatus');
+      if (!url) { statusEl.textContent = '\u26a0\ufe0f Ingresa una URL v\u00e1lida.'; return; }
+      if (!_adminToken) { statusEl.textContent = '\u26a0\ufe0f Debes iniciar sesi\u00f3n primero.'; return; }
+
+      statusEl.textContent = '\u23f3 Procesando PDF... puede tardar 30-60 segundos.';
+      try {
+        const r = await fetch('/api/admin/update-manual', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${_adminToken}`
+          },
+          body: JSON.stringify({ url })
+        });
+        const data = await r.json();
+        if (r.ok || r.status === 202) {
+          statusEl.textContent = '\u2705 ' + data.message;
+          log('\ud83d\udcda Proceso de actualizaci\u00f3n del Manual iniciado en servidor.', 'ok');
+        } else {
+          statusEl.textContent = '\u274c ' + (data.error || 'Error desconocido.');
+        }
+      } catch (e) {
+        statusEl.textContent = '\u274c Error de conexi\u00f3n: ' + e.message;
+      }
+    }
+
+    // Cargar al abrir el panel
+    loadNetwork();
+    loadPlaylists();
+    loadOverlay();
+    loadVoiceConfig();
+  </script>
+</body>
+</html>
