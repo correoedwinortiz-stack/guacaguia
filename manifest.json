@@ -1,7 +1,7 @@
 {
-  "name": "Oraciones Mamá",
-  "short_name": "Mamá Live",
-  "description": "Reproductor de oraciones en vivo con Mamá",
+  "name": "GuacaGuía",
+  "short_name": "GuacaGuía",
+  "description": "Conoce, comprende y vive el Manual de Convivencia",
   "start_url": "/player",
   "display": "fullscreen",
   "orientation": "portrait",
@@ -10,13 +10,13 @@
   "scope": "/",
   "icons": [
     {
-      "src": "/biblia.png",
+      "src": "/guacaguia_icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/biblia.png",
+      "src": "/guacaguia_icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

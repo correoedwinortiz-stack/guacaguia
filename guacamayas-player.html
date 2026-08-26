@@ -665,6 +665,7 @@
         this.slots = slotIds.map(id => ({ id, element: null, username: null }));
       }
       addPetitioner(username, avatarUrl) {
+        if (!this.stage) return; // petitioners-stage no existe en este layout
         if (this.slots.some(s => s.username === username)) return;
         const slot = this.slots.find(s => s.element === null);
         if (!slot) return;
@@ -673,12 +674,12 @@
         const avatarDiv = document.createElement('div'); avatarDiv.className = 'avatar';
         if (avatarUrl) { avatarDiv.style.backgroundImage = `url('${avatarUrl}')`; }
         else { const iDiv = document.createElement('div'); iDiv.className='initial'; iDiv.innerText=(username||'?').charAt(0).toUpperCase(); avatarDiv.appendChild(iDiv); }
-        const img = document.createElement('img'); img.className = 'body';
-        img.src = (/a$/i.test((username||'').trim().split(/[0-9_]/)[0])) ? '/peticionaria1.png' : '/peticionario1.png';
-        el.appendChild(avatarDiv); el.appendChild(img); this.stage.appendChild(el);
+        el.appendChild(avatarDiv);
+        this.stage.appendChild(el);
         slot.element = el; slot.username = username;
       }
       removePetitioner(username) {
+        if (!this.stage) return;
         const slot = this.slots.find(s => s.username === username);
         if (slot && slot.element) {
           slot.element.classList.add('leaving');
@@ -687,6 +688,15 @@
       }
     }
     const petitionerManager = new PetitionerManager();
+
+    // Stub de fadeMusic para compatibilidad con eventos WS heredados
+    function fadeMusic(targetVol) {
+      // En este reproductor la música la maneja duckLofi/unduckLofi
+      if (targetVol !== undefined && typeof window.duckLofi === 'function') {
+        if (targetVol < 0.2) window.duckLofi();
+        else window.unduckLofi();
+      }
+    }
 
     let ws              = null;
     let isPraying       = false;
@@ -1055,8 +1065,8 @@
             if (data.smoothing  !== undefined) smoothing = parseFloat(data.smoothing);
           }
 
-          if (data.type === 'music_start')  startMusicLoop(data.musicType, data.url);
-          if (data.type === 'music_stop')   stopMusicLoop();
+          if (data.type === 'music_start')  { if (typeof startMusicLoop === 'function') startMusicLoop(data.musicType, data.url); }
+          if (data.type === 'music_stop')   { if (typeof stopMusicLoop  === 'function') stopMusicLoop(); }
           if (data.type === 'music_volume') fadeMusic(data.volume);
           if (data.type === 'overlay_update') applyOverlay(data);
 
