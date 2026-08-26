@@ -1,6 +1,6 @@
-# 🦜 Las Guacamayas Sabias — Live de Preguntas sobre Convivencia Escolar
+# 🦜 La GuacaGuía — Live de Preguntas sobre Convivencia Escolar
 
-Un live interactivo donde **3 guacamayas sabias** responden preguntas de estudiantes sobre el **Manual de Convivencia** de la Escuela Normal de Mariquita. Los estudiantes escriben en el chat y las guacamayas responden con voz, animaciones y consejos basados en el reglamento escolar.
+Un live interactivo donde la **GuacaGuía** responde preguntas de estudiantes sobre el **Manual de Convivencia** de la Escuela Normal de Mariquita. Los estudiantes escriben en el chat y la GuacaGuía responde con voz, animaciones y consejos basados en el reglamento escolar.
 
 ---
 
@@ -144,4 +144,4 @@ Desde el panel (`/admin`) puedes:
 
 ---
 
-*Hecho con amor para honrar a las guacamayas sabias de Mariquita. 🦜🙏*
+*Hecho con amor para honrar a la GuacaGuía de Mariquita. 🦜🙏*
