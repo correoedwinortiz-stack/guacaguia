@@ -1,10 +1,10 @@
 {
-  "name": "oraciones-mama",
+  "name": "guacaguia",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "GuacaGuía: conoce, comprende y vive el Manual de Convivencia",
+  "main": "server.mjs",
   "scripts": {
-    "start": "node oraciones.js",
+    "start": "node server.mjs",
     "server": "node server.mjs"
   },
   "keywords": [],
