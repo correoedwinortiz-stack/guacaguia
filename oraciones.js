@@ -155,7 +155,7 @@ ${contextText}
   throw new Error('Todos los LLMs fallaron');
 }
 
-let currentEdgeVoice = "es-CO-SalomeNeural";
+let currentEdgeVoice = "es-MX-DaliaNeural";
 function setEdgeVoice(voice) {
   if (voice) currentEdgeVoice = voice;
 }
@@ -195,9 +195,9 @@ async function sintetizarVoz(texto, outputPath) {
     await sintetizarConEdgeNode(currentEdgeVoice, texto, outputPath);
     return { path: outputPath, ttsProvider: 'edge' };
   } catch (err) {
-    console.warn(`⚠️ Voz "${currentEdgeVoice}" falló. Reintentando con voz base (es-CO-SalomeNeural)...`);
+    console.warn(`⚠️ Voz "${currentEdgeVoice}" falló. Reintentando con voz base (es-MX-DaliaNeural)...`);
     try {
-      await sintetizarConEdgeNode('es-CO-SalomeNeural', texto, outputPath);
+      await sintetizarConEdgeNode('es-MX-DaliaNeural', texto, outputPath);
       return { path: outputPath, ttsProvider: 'edge' };
     } catch(e2) {
       throw new Error(`Edge TTS falló: ${e2.message}`);

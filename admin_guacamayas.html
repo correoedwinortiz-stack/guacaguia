@@ -140,8 +140,11 @@
       <div class="card-desc">Elige la voz femenina en español que usan las guacamayas para responder.</div>
       <label class="field-label">Voz activa:</label>
       <select id="ttsVoiceSelect" class="input-text" onchange="saveVoice()">
+        <optgroup label="🇲🇽 México">
+          <option value="es-MX-DaliaNeural">Dalia — MX (recomendada)</option>
+        </optgroup>
         <optgroup label="🇨🇴 Colombia">
-          <option value="es-CO-SalomeNeural">Salomé — CO (recomendada)</option>
+          <option value="es-CO-SalomeNeural">Salomé — CO</option>
         </optgroup>
         <optgroup label="🇪🇸 España">
           <option value="es-ES-ElviraNeural">Elvira — ES</option>
@@ -536,13 +539,11 @@
         const cfg = await res.json();
         const sel = document.getElementById('ttsVoiceSelect');
         if (!sel) return;
-        let voice = cfg.ttsVoice || 'es-CO-SalomeNeural';
-        // Si la voz guardada ya no está en el selector (fue deshabilitada),
-        // volver a la recomendada para no dejar el panel sin selección.
-        const vocesValidas = [...sel.options].map(o => o.value);
+        let voice = cfg.ttsVoice || 'es-MX-DaliaNeural';
+        const vocesValidas = Array.from(sel.options).map(o => o.value);
         if (!vocesValidas.includes(voice)) {
-          console.warn(`Voz "${voice}" ya no está disponible, usando es-CO-SalomeNeural`);
-          voice = 'es-CO-SalomeNeural';
+          console.warn(`Voz "${voice}" ya no está disponible, usando es-MX-DaliaNeural`);
+          voice = 'es-MX-DaliaNeural';
         }
         sel.value = voice;
       } catch (e) {}
@@ -550,7 +551,7 @@
 
     async function saveVoice() {
       const sel = document.getElementById('ttsVoiceSelect');
-      const voice = sel ? sel.value : 'es-CO-SalomeNeural';
+      const voice = sel ? sel.value : 'es-MX-DaliaNeural';
       const msg = document.getElementById('voiceSaveMsg');
       try {
         // Leer config actual para no pisar otros campos

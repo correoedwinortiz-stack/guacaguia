@@ -160,7 +160,7 @@ try {
 
 // Cargar configuración de regalos desde disco
 const CONFIG_PATH = path.join(__dirname, 'config.json');
-let giftConfig = { giftMap: { zona1: [], zona2: [], zona3: [], zona4: [] }, sfxMap: {}, chatCommands: {}, ttsVoice: 'es-CO-SalomeNeural' };
+let giftConfig = { giftMap: { zona1: [], zona2: [], zona3: [], zona4: [] }, sfxMap: {}, chatCommands: {}, ttsVoice: 'es-MX-DaliaNeural' };
 try {
   if (fs.existsSync(CONFIG_PATH)) {
     giftConfig = { ...giftConfig, ...JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8')) };
