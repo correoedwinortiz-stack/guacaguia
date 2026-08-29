@@ -463,11 +463,11 @@ const httpServer = http.createServer(async (req, res) => {
 
   // Imágenes
   const urlPath = req.url.split('?')[0];
-  if (urlPath.match(/\.(webp|png|jpg|jpeg|gif)$/i)) {
+  if (urlPath.match(/\.(webp|png|jpg|jpeg|gif|ico)$/i)) {
     const filePath = path.join(__dirname, decodeURIComponent(urlPath));
     if (fs.existsSync(filePath)) {
       const ext = path.extname(urlPath).toLowerCase();
-      const contentType = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : 'image/jpeg';
+      const contentType = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : ext === '.ico' ? 'image/x-icon' : 'image/jpeg';
       res.writeHead(200, { 'Content-Type': contentType });
       fs.createReadStream(filePath).pipe(res);
       return;
