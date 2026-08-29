@@ -404,7 +404,7 @@
         <input id="chat-petition" type="text" maxlength="200" placeholder="Escribe tu duda aquí..." autocomplete="off">
       </div>
       <!-- Widget invisible de Cloudflare Turnstile -->
-      <div id="turnstile-widget"></div>
+      <div id="turnstile-widget" style="width: 100%; margin-top: 8px;"></div>
       <button id="chat-send-btn" onclick="sendPrayer()">
         <div class="btn-spinner"></div>
         <span class="btn-text">Enviar Pregunta</span>
@@ -1319,7 +1319,7 @@
       const siteKey = window.TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
       turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
         sitekey: siteKey,
-        size: 'compact',
+        size: 'flexible',
         appearance: 'interaction-only',
         callback: (token) => { turnstileToken = token; },
         'expired-callback': () => { turnstileToken = null; }
