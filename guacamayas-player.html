@@ -16,6 +16,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Sedgwick+Ave&display=swap" rel="stylesheet">
   <!-- Cloudflare Turnstile (anti-spam captcha invisible) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+  <!-- Anime.js para animaciones fluidas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <!-- Site key inyectado por el servidor -->
   <script>window.TURNSTILE_SITE_KEY = '__TURNSTILE_SITE_KEY__';</script>
   <style>
@@ -262,10 +264,106 @@
     #chat-send-btn.loading .btn-spinner { display: block; }
     #chat-send-btn.loading .btn-text { display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Animaciones UI (GuacaTip / Pregunta) ── */
+    #anime-badges-container {
+      position: fixed;
+      top: 65px; /* Debajo de la radio */
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 150;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none; /* Que no bloqueen clics */
+    }
+
+    .badge-anim {
+      background: rgba(10, 10, 15, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 30px;
+      padding: 10px 22px;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0; /* Controlado por Anime.js */
+    }
+    
+    .badge-guacatip {
+      border-color: rgba(34, 197, 94, 0.5); /* Verde esmeralda sutil */
+    }
+    .badge-guacatip .icon { font-size: 1.3rem; }
+
+    .badge-pregunta {
+      border-color: rgba(168, 85, 247, 0.5); /* Morado sutil */
+    }
+    .badge-pregunta .icon { font-size: 1.3rem; }
+    
+    /* ── Estilos del Nuevo Widget de Radio ── */
+    .radio-widget {
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 100; border-radius: 30px; overflow: hidden;
+      background: rgba(10, 10, 15, 0.75); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
+      width: min(240px, 80vw); padding: 8px 16px;
+      display: flex; align-items: center; cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.3s;
+    }
+    
+    .radio-toggle-wrapper {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .radio-toggle-bg {
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: background-color 0.3s, box-shadow 0.3s;
+      position: relative;
+    }
+    .radio-toggle-bg.on {
+      background-color: rgba(16, 185, 129, 0.85); /* Verde neón suave */
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+    }
+    .radio-toggle-knob {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background-color: white;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      /* Animado por Anime.js */
+    }
+
   </style>
 </head>
 
 <body>
+  <div id="anime-badges-container">
+    <div id="guacatip-badge" class="badge-anim badge-guacatip" style="display: none;">
+      <span class="icon">💡</span>
+      <span class="text">GuacaTip de Convivencia</span>
+    </div>
+    <div id="pregunta-badge" class="badge-anim badge-pregunta" style="display: none;">
+      <span class="icon">💬</span>
+      <span class="text" id="pregunta-badge-text">¡Nueva Pregunta!</span>
+    </div>
+  </div>
+
   <div id="player-container">
     <!-- Dual video buffers for seamless transitions -->
     <video id="vid1" crossorigin="anonymous" autoplay loop muted playsinline class="active"></video>
@@ -319,6 +417,7 @@
   <audio id="snd-fondo"   loop preload="auto" src="/sonidos/sonido_fondo.mp3"   style="display:none"></audio>
   <audio id="snd-default" loop preload="auto" src="/sonidos/guacayamas_default2.mp3" style="display:none"></audio>
   <audio id="snd-vuela"   preload="auto" src="/sonidos/guacamaya_vuela2.mp3"   style="display:none"></audio>
+  <audio id="snd-vuela3"  preload="auto" src="/sonidos/guacamaya_vuela3.mp3"   style="display:none"></audio>
   <audio id="snd-vuela4"  preload="auto" src="/sonidos/guacamaya_vuela.mp3"     style="display:none"></audio>
   <audio id="tts-audio" preload="none"></audio>
   <audio id="snd-nueva-pregunta" preload="auto" src="/sonidos/nueva_pregunta.wav" style="display:none"></audio>
@@ -582,17 +681,20 @@
           lastContextAudio = sndDefault;
         }
       } else if (isVuela) {
-        // guacamaya_va / guacamaya_viene → guacamaya_vuela2.mp3 (1 vez)
-        if (lastContextAudio !== sndVuela) {
+        // guacamaya_viene -> sndVuela (guacamaya_vuela2.mp3)
+        // guacamaya_va -> sndVuela3 (guacamaya_vuela3.mp3)
+        let targetAudio = (animName === 'guacamaya_va') ? document.getElementById('snd-vuela3') : sndVuela;
+        
+        if (lastContextAudio !== targetAudio) {
           if (lastContextAudio) lastContextAudio.pause();
-          lastContextAudio = sndVuela;
-          sndVuela.currentTime = 0;
+          lastContextAudio = targetAudio;
+          targetAudio.currentTime = 0;
           if (animName === 'guacamaya_va') {
             setTimeout(() => {
-              if (lastContextAudio === sndVuela) sndVuela.play().catch(() => {});
+              if (lastContextAudio === targetAudio) targetAudio.play().catch(() => {});
             }, 600); // Retardo para sincronizar el sonido con el despegue visual
           } else {
-            sndVuela.play().catch(() => {});
+            targetAudio.play().catch(() => {});
           }
         }
       } else {
@@ -814,13 +916,56 @@
 
           if (data.type === 'prayer_queued') {
             document.getElementById('snd-nueva-pregunta').play().catch(()=>{});
+            petitionerManager.addPetitioner(data.username, data.avatar);
+            
+            // Animación "Pregunta"
+            if (window.anime) {
+              const b = document.getElementById('pregunta-badge');
+              const t = document.getElementById('pregunta-badge-text');
+              const name = data.username || 'alguien';
+              t.textContent = `¡Pregunta de @${name}!`;
+              b.style.display = 'flex';
+              anime.timeline()
+                .add({
+                  targets: b,
+                  opacity: [0, 1],
+                  translateY: [-20, 0],
+                  scale: [0.8, 1],
+                  duration: 600,
+                  easing: 'easeOutElastic(1, .8)'
+                })
+                .add({
+                  targets: b,
+                  opacity: 0,
+                  translateY: -20,
+                  scale: 0.8,
+                  duration: 400,
+                  easing: 'easeInQuad',
+                  delay: 4000,
+                  complete: () => { b.style.display = 'none'; }
+                });
+            }
           }
 
-          if (data.type === 'prayer_queued') petitionerManager.addPetitioner(data.username, data.avatar);
           if (data.type === 'execute_prayer' && data.url) {
             prayerSessionId++;
             isPraying = true;
             if (musicLoopTimer) { clearTimeout(musicLoopTimer); musicLoopTimer = null; }
+            
+            // Animación "GuacaTip"
+            if (window.anime && !data.username) {
+              const b = document.getElementById('guacatip-badge');
+              b.style.display = 'flex';
+              anime({
+                targets: b,
+                opacity: [0, 1],
+                translateY: [-20, 0],
+                scale: [0.8, 1],
+                duration: 600,
+                easing: 'easeOutElastic(1, .8)'
+              });
+            }
+
             // Bajar TODOS los audios locales a nivel sutil mientras suena la oración TTS
             window.duckLofi();
             sndFondo.volume = 0.15;
@@ -897,6 +1042,22 @@
                       try { ws.send(JSON.stringify({ type: 'prayer_ended', username: data.username })); } catch(_) {}
                       if (currentMusicType && currentMusicType !== 'idle') startMusicLoop(currentMusicType, null);
                       else startMusicLoop('idle', null);
+                      
+                      // Ocultar GuacaTip
+                      if (window.anime) {
+                        const bg = document.getElementById('guacatip-badge');
+                        if (bg.style.display !== 'none') {
+                          anime({
+                            targets: bg,
+                            opacity: 0,
+                            translateY: -20,
+                            scale: 0.8,
+                            duration: 400,
+                            easing: 'easeInQuad',
+                            complete: () => { bg.style.display = 'none'; }
+                          });
+                        }
+                      }
                     }, false, Infinity);
                   }
 
@@ -980,8 +1141,9 @@
 
                 const HABLA1_MS = preloadedDurations['guacamaya_habla1'] || 8000;
                 const HABLA2_MS = preloadedDurations['guacamaya_habla2'] || 7000;
+                const HABLA2_OFFSET = 1200; // Ajuste para que el video termine antes de que se corte la voz
 
-                const habla2StartMs = Math.max(500, realDurMs - HABLA2_MS);
+                const habla2StartMs = Math.max(500, realDurMs - HABLA2_MS - HABLA2_OFFSET);
                 const habla1Loops   = Math.floor(habla2StartMs / HABLA1_MS);
                 const habla1LastMs  = habla2StartMs - (habla1Loops * HABLA1_MS);
                 const habla1Speed   = (habla1LastMs > 300) ? Math.min(3.5, HABLA1_MS / habla1LastMs) : 1.0;
@@ -1157,7 +1319,8 @@
       const siteKey = window.TURNSTILE_SITE_KEY || '1x00000000000000000000AA';
       turnstileWidgetId = window.turnstile.render('#turnstile-widget', {
         sitekey: siteKey,
-        size: 'flexible',
+        size: 'compact',
+        appearance: 'interaction-only',
         callback: (token) => { turnstileToken = token; },
         'expired-callback': () => { turnstileToken = null; }
       });
@@ -1290,25 +1453,20 @@
     preload="none"
     style="display:none">
   </audio>
-  <!-- Widget de radio pequeño, solo visual -->
-  <div id="lofi-container" style="
-      position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
-      z-index: 100; border-radius: 12px; overflow: hidden;
-      background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      opacity: 0.75; transition: opacity 0.4s;
-      width: min(220px, 72vw); padding: 8px 12px;
-      display: flex; align-items: center; gap: 10px; cursor: pointer;
-    "
-    onclick="toggleRadio()"
-    title="Clic para encender/apagar la radio">
-    <span id="radio-icon" style="font-size:1.3rem;">📻</span>
+  <!-- Widget de radio interactivo (Anime.js Toggle) -->
+  <div id="lofi-container" class="radio-widget" onclick="toggleRadio()" title="Clic para encender/apagar la radio">
+    <span id="radio-icon" style="font-size:1.3rem; margin-right: 6px;">📻</span>
     <div style="flex:1; min-width:0;">
-      <div style="font-size:0.68rem; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Lilo Radio</div>
-      <div id="radio-status" style="font-size:0.6rem; color:#94a3b8;">Toca para activar</div>
+      <div style="font-size:0.75rem; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing: 0.02em;">LILO RADIO</div>
     </div>
-    <div id="radio-bars" style="display:flex; align-items:flex-end; gap:2px; height:16px; opacity:0; transition:opacity 0.4s;">
+    <!-- Modern UI Toggle -->
+    <div class="radio-toggle-wrapper">
+      <div id="radio-toggle-bg" class="radio-toggle-bg off">
+        <div id="radio-toggle-knob" class="radio-toggle-knob"></div>
+      </div>
+    </div>
+    
+    <div id="radio-bars" style="display:flex; align-items:flex-end; gap:2px; height:16px; opacity:0; margin-left: 8px;">
       <div style="width:3px; background:#10b981; border-radius:2px; animation: bar1 0.8s ease-in-out infinite alternate;"></div>
       <div style="width:3px; background:#10b981; border-radius:2px; animation: bar2 0.6s ease-in-out infinite alternate;"></div>
       <div style="width:3px; background:#10b981; border-radius:2px; animation: bar3 1.0s ease-in-out infinite alternate;"></div>
@@ -1322,7 +1480,8 @@
   <script>
     const lofiBox      = document.getElementById('lofi-container');
     const radioEl      = document.getElementById('radio-ambiental');
-    const radioStatus  = document.getElementById('radio-status');
+    const radioToggleBg= document.getElementById('radio-toggle-bg');
+    const radioToggleKnob= document.getElementById('radio-toggle-knob');
     const radioBars    = document.getElementById('radio-bars');
     const radioIcon    = document.getElementById('radio-icon');
 
@@ -1349,18 +1508,40 @@
       if (radioPlaying) {
         radioEl.pause();
         radioPlaying = false;
-        radioStatus.textContent = 'Toca para activar';
         radioBars.style.opacity = '0';
         radioIcon.textContent = '📻';
+        radioToggleBg.classList.remove('on');
+        radioToggleBg.classList.add('off');
+        if(window.anime) {
+          anime({
+            targets: radioToggleKnob,
+            translateX: 0,
+            duration: 350,
+            easing: 'easeOutElastic(1, .8)'
+          });
+        } else {
+          radioToggleKnob.style.transform = 'translateX(0px)';
+        }
       } else {
         radioEl.volume = RADIO_VOL_NORMAL;
         radioEl.play().then(() => {
           radioPlaying = true;
-          radioStatus.textContent = '● EN VIVO';
           radioBars.style.opacity = '1';
           radioIcon.textContent = '🎵';
+          radioToggleBg.classList.remove('off');
+          radioToggleBg.classList.add('on');
+          if(window.anime) {
+            anime({
+              targets: radioToggleKnob,
+              translateX: 18,
+              duration: 350,
+              easing: 'easeOutElastic(1, .8)'
+            });
+          } else {
+            radioToggleKnob.style.transform = 'translateX(18px)';
+          }
         }).catch(() => {
-          radioStatus.textContent = 'Error al cargar';
+          console.error("No se pudo iniciar la radio");
         });
       }
     }

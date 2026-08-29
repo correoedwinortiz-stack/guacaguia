@@ -537,8 +537,9 @@ const httpServer = http.createServer(async (req, res) => {
         }
 
         // ✅ Todo OK: encolar la petición de oración
+        // Nota: prayerEngine.receiveChatMessage ya hace broadcast({ type: 'prayer_queued', username, ... })
+        // NO duplicar el broadcast aquí o se pisará el nombre.
         prayerEngine.receiveChatMessage(username, `/oracion ${peticion}`);
-        broadcast({ type: 'prayer_queued' });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, username, peticion }));
       } catch (e) { res.writeHead(400); res.end('Invalid JSON'); }
@@ -622,8 +623,8 @@ const httpServer = http.createServer(async (req, res) => {
         const data = JSON.parse(body || '{}');
         const username = (data.username || 'Admin').trim().slice(0, 30);
         const peticion = (data.peticion || '').trim().slice(0, 200);
+        // prayer-engine ya hace broadcast de prayer_queued con username
         prayerEngine.receiveChatMessage(username, `/oracion ${peticion}`);
-        broadcast({ type: 'prayer_queued' });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, username, peticion }));
       } catch (e) { res.writeHead(400); res.end('Invalid JSON'); }
@@ -1010,8 +1011,8 @@ if (TIKTOK_USERNAME && TIKTOK_USERNAME !== 'tu_usuario_de_tiktok') {
     }
 
     const handled = prayerEngine.receiveChatMessage(username, msg, avatar);
+    // prayer-engine ya hace broadcast de prayer_queued con username
     if (handled) {
-      broadcast({ type: 'prayer_queued' });
       return;
     }
 

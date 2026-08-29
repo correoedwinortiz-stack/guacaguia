@@ -342,10 +342,10 @@ export class PrayerEngine {
       // las generadas se parsea el WAV. Si no se puede leer (MP3), se estima.
       const wavDurMs     = estandarItem ? audioRealMs : leerDuracionWav(filePath);
       const audioDurMs   = wavDurMs || estDurMs;
-      // Safety timeout: el player manda prayer_ended ~4.5s después del audio
-      // (mientras reproduce el video de victoria). Con duración real bastan 8s;
-      // con la estimación (MP3) damos más margen por si la voz es más lenta.
-      const safetyMs = audioDurMs + (wavDurMs ? 8000 : 15000);
+      // Safety timeout: el player manda prayer_ended cuando termina TODA la coreografía.
+      // La coreografía incluye: esperar fin del loop idle actual (hasta 12s) + intro video (4s) + audio + outro video (5s).
+      // Le damos un margen generoso de 35 segundos adicionales para evitar cortes abruptos.
+      const safetyMs = audioDurMs + 35000;
       console.log(`⏱️ Audio: ${(audioDurMs/1000).toFixed(1)}s (estimado ${(estDurMs/1000).toFixed(1)}s) | timeout motor: ${(safetyMs/1000).toFixed(1)}s`);
 
       const isStrong = estandarItem ? !!estandarItem.isStrong : esOracionFuerte(textoOracion);
