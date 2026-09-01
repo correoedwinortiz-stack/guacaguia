@@ -368,7 +368,7 @@
       background: rgba(10, 10, 15, 0.75); backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       box-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
-      width: min(240px, 80vw); padding: 8px 16px;
+      width: min(340px, 92vw); padding: 8px 16px;
       display: flex; align-items: center; cursor: pointer;
       font-family: 'Inter', sans-serif;
       transition: border-color 0.3s;
@@ -1525,8 +1525,31 @@
   <!-- Widget de radio interactivo (Anime.js Toggle) -->
   <div id="lofi-container" class="radio-widget" onclick="toggleRadio()" title="Clic para encender/apagar la radio">
     <span id="radio-icon" style="font-size:1.3rem; margin-right: 6px;">📻</span>
-    <div style="flex:1; min-width:0;">
-      <div style="font-size:0.75rem; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing: 0.02em;">LILO RADIO</div>
+    <div style="flex:1; min-width:0; display:flex; align-items:center; gap:6px;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+      <div style="font-size:0.75rem; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing: 0.02em; display:flex; align-items:center; gap: 4px; background: rgba(255,255,255,0.15); padding: 4px 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.25); width: fit-content; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+        <select id="radio-station-select" onclick="event.stopPropagation()" onchange="changeStation(event)" style="background:transparent; border:none; color:#fff; font-size:0.75rem; font-weight:800; cursor:pointer; outline:none; -webkit-appearance: none; appearance: none; padding-right: 4px;">
+          <option value="makondo" style="color:#000;" selected>MAKONDO LOFI</option>
+          <option value="lilo" style="color:#000;">LILO RADIO</option>
+        </select>
+        <svg onclick="event.stopPropagation(); var sel=document.getElementById('radio-station-select'); if(sel.showPicker){sel.showPicker();}else{sel.focus(); sel.click();}" style="pointer-events: auto; cursor:pointer; width: 14px; height: 14px; stroke: #fff; flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      <!-- Enlace a la web de la estación activa -->
+      <div id="station-link-wrapper" style="position:relative; display:flex; align-items:center;" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+        <a id="station-link" href="https://makondolofi.top/" target="_blank" onclick="event.stopPropagation()"
+           title="Visitar web de la estación"
+           style="display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color:#fff; text-decoration:none; transition: background 0.2s, transform 0.15s; margin-left:4px; flex-shrink:0;"
+           onmouseover="this.style.background='rgba(255,255,255,0.28)'; this.style.transform='scale(1.1)'; document.getElementById('station-tooltip').style.opacity='1';"
+           onmouseout="this.style.background='rgba(255,255,255,0.12)'; this.style.transform='scale(1)'; document.getElementById('station-tooltip').style.opacity='0';">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+        <div id="station-tooltip" style="position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:rgba(10,10,15,0.92); color:#fff; font-size:0.65rem; font-weight:600; padding:4px 8px; border-radius:8px; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity 0.2s; border:1px solid rgba(255,255,255,0.15);">
+          Visitar sitio web ↗
+        </div>
+      </div>
     </div>
     <!-- Modern UI Toggle -->
     <div class="radio-toggle-wrapper">
@@ -1553,11 +1576,73 @@
     const radioToggleKnob= document.getElementById('radio-toggle-knob');
     const radioBars    = document.getElementById('radio-bars');
     const radioIcon    = document.getElementById('radio-icon');
+    const stationSelect= document.getElementById('radio-station-select');
 
     const RADIO_VOL_NORMAL = 0.40; // volumen normal de la radio
     const RADIO_VOL_DUCK   = 0.12; // volumen sutil durante TTS
     let radioPlaying = false;
     let radioFadeIv  = null;
+
+    const stations = {
+      lilo: { url: 'https://azurecloud.pvtwebs.com/listen/lilo/radio.mp3', type: 'stream' },
+      makondo: { url: 'https://makondolofi.top/api/estado', type: 'api' }
+    };
+    let currentStation = 'makondo';
+
+    async function syncMakondoRadio() {
+      if (currentStation !== 'makondo' || !radioPlaying) return;
+      try {
+        const res = await fetch(stations.makondo.url);
+        const data = await res.json();
+        if (data.track) {
+          const audioUrl = 'https://makondolofi.top' + data.track.url;
+          if (radioEl.src !== audioUrl) {
+            radioEl.src = audioUrl;
+          }
+          radioEl.currentTime = data.offset;
+          if (radioPlaying) radioEl.play().catch(e => console.error("Auto-play error:", e));
+        }
+      } catch (err) {
+        console.error('Error fetching Makondo status', err);
+      }
+    }
+
+    radioEl.addEventListener('ended', () => {
+      if (currentStation === 'makondo' && radioPlaying) {
+        syncMakondoRadio();
+      }
+    });
+
+    const stationWebUrls = {
+      lilo: 'https://lilofiradio.com/',
+      makondo: 'https://makondolofi.top/'
+    };
+
+    function updateStationLink(station) {
+      const link = document.getElementById('station-link');
+      if (link) link.href = stationWebUrls[station];
+    }
+
+    window.changeStation = function(e) {
+      const newStation = e.target.value;
+      if (newStation === currentStation) return;
+      currentStation = newStation;
+      updateStationLink(currentStation);
+      if (radioPlaying) {
+        radioEl.pause();
+        if (stations[currentStation].type === 'api') {
+          syncMakondoRadio();
+        } else {
+          radioEl.src = stations[currentStation].url;
+          radioEl.volume = RADIO_VOL_NORMAL;
+          radioEl.play();
+        }
+      } else {
+        if (stations[currentStation].type !== 'api') {
+          radioEl.src = stations[currentStation].url;
+        }
+      }
+    };
 
     function fadeRadioTo(target, durationMs) {
       if (radioFadeIv) { clearInterval(radioFadeIv); radioFadeIv = null; }
@@ -1593,8 +1678,9 @@
         }
       } else {
         radioEl.volume = RADIO_VOL_NORMAL;
-        radioEl.play().then(() => {
-          radioPlaying = true;
+        if (stations[currentStation].type === 'api') {
+          radioPlaying = true; // Set flag early for sync
+          syncMakondoRadio();
           radioBars.style.opacity = '1';
           radioIcon.textContent = '🎵';
           radioToggleBg.classList.remove('off');
@@ -1609,9 +1695,27 @@
           } else {
             radioToggleKnob.style.transform = 'translateX(18px)';
           }
-        }).catch(() => {
-          console.error("No se pudo iniciar la radio");
-        });
+        } else {
+          radioEl.play().then(() => {
+            radioPlaying = true;
+            radioBars.style.opacity = '1';
+            radioIcon.textContent = '🎵';
+            radioToggleBg.classList.remove('off');
+            radioToggleBg.classList.add('on');
+            if(window.anime) {
+              anime({
+                targets: radioToggleKnob,
+                translateX: 18,
+                duration: 350,
+                easing: 'easeOutElastic(1, .8)'
+              });
+            } else {
+              radioToggleKnob.style.transform = 'translateX(18px)';
+            }
+          }).catch(() => {
+            console.error("No se pudo iniciar la radio");
+          });
+        }
       }
     }
 

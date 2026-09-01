@@ -367,7 +367,7 @@
       background: rgba(10, 10, 15, 0.75); backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       box-shadow: 0 4px 25px rgba(0, 0, 0, 0.6);
-      width: min(240px, 80vw); padding: 8px 16px;
+      width: min(340px, 92vw); padding: 8px 16px;
       display: flex; align-items: center; cursor: pointer;
       font-family: 'Inter', sans-serif;
       transition: border-color 0.3s;
@@ -1397,11 +1397,73 @@
     const radioToggleKnob= document.getElementById('radio-toggle-knob');
     const radioBars    = document.getElementById('radio-bars');
     const radioIcon    = document.getElementById('radio-icon');
+    const stationSelect= document.getElementById('radio-station-select');
 
     const RADIO_VOL_NORMAL = 0.40; // volumen normal de la radio
     const RADIO_VOL_DUCK   = 0.12; // volumen sutil durante TTS
     let radioPlaying = false;
     let radioFadeIv  = null;
+
+    const stations = {
+      lilo: { url: 'https://azurecloud.pvtwebs.com/listen/lilo/radio.mp3', type: 'stream' },
+      makondo: { url: 'https://makondolofi.top/api/estado', type: 'api' }
+    };
+    let currentStation = 'makondo';
+
+    async function syncMakondoRadio() {
+      if (currentStation !== 'makondo' || !radioPlaying) return;
+      try {
+        const res = await fetch(stations.makondo.url);
+        const data = await res.json();
+        if (data.track) {
+          const audioUrl = 'https://makondolofi.top' + data.track.url;
+          if (radioEl.src !== audioUrl) {
+            radioEl.src = audioUrl;
+          }
+          radioEl.currentTime = data.offset;
+          if (radioPlaying) radioEl.play().catch(e => console.error("Auto-play error:", e));
+        }
+      } catch (err) {
+        console.error('Error fetching Makondo status', err);
+      }
+    }
+
+    radioEl.addEventListener('ended', () => {
+      if (currentStation === 'makondo' && radioPlaying) {
+        syncMakondoRadio();
+      }
+    });
+
+    const stationWebUrls = {
+      lilo: 'https://lilofiradio.com/',
+      makondo: 'https://makondolofi.top/'
+    };
+
+    function updateStationLink(station) {
+      const link = document.getElementById('station-link');
+      if (link) link.href = stationWebUrls[station];
+    }
+
+    window.changeStation = function(e) {
+      const newStation = e.target.value;
+      if (newStation === currentStation) return;
+      currentStation = newStation;
+      updateStationLink(currentStation);
+      if (radioPlaying) {
+        radioEl.pause();
+        if (stations[currentStation].type === 'api') {
+          syncMakondoRadio();
+        } else {
+          radioEl.src = stations[currentStation].url;
+          radioEl.volume = RADIO_VOL_NORMAL;
+          radioEl.play();
+        }
+      } else {
+        if (stations[currentStation].type !== 'api') {
+          radioEl.src = stations[currentStation].url;
+        }
+      }
+    };
 
     function fadeRadioTo(target, durationMs) {
       if (radioFadeIv) { clearInterval(radioFadeIv); radioFadeIv = null; }
@@ -1437,8 +1499,9 @@
         }
       } else {
         radioEl.volume = RADIO_VOL_NORMAL;
-        radioEl.play().then(() => {
-          radioPlaying = true;
+        if (stations[currentStation].type === 'api') {
+          radioPlaying = true; // Set flag early for sync
+          syncMakondoRadio();
           radioBars.style.opacity = '1';
           radioIcon.textContent = '🎵';
           radioToggleBg.classList.remove('off');
@@ -1453,9 +1516,27 @@
           } else {
             radioToggleKnob.style.transform = 'translateX(18px)';
           }
-        }).catch(() => {
-          console.error("No se pudo iniciar la radio");
-        });
+        } else {
+          radioEl.play().then(() => {
+            radioPlaying = true;
+            radioBars.style.opacity = '1';
+            radioIcon.textContent = '🎵';
+            radioToggleBg.classList.remove('off');
+            radioToggleBg.classList.add('on');
+            if(window.anime) {
+              anime({
+                targets: radioToggleKnob,
+                translateX: 18,
+                duration: 350,
+                easing: 'easeOutElastic(1, .8)'
+              });
+            } else {
+              radioToggleKnob.style.transform = 'translateX(18px)';
+            }
+          }).catch(() => {
+            console.error("No se pudo iniciar la radio");
+          });
+        }
       }
     }
   </script>
